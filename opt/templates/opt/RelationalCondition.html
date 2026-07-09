@@ -1,0 +1,59 @@
+<div class="relational-condition-form condition-form" data-form-index="{{ index }}">
+
+  <div class="condition condition-left">
+    <p>
+      {{ form.activity_property.label_tag }}
+      {{ form.activity_property }}
+      {{ form.activity_property.errors }}
+      {{ form.activity_property_type_str }}
+    </p>
+
+    <p>
+      {{ form.activity_operator.label_tag }}
+      {{ form.activity_operator }}
+      {{ form.activity_operator.errors }}
+    </p>
+
+    <p>
+      {{ form.activity_reference_value.label_tag }}
+      {{ form.activity_reference_value }}
+      {{ form.activity_reference_value.errors }}
+      {{ form.activity_reference_value_type_str }}
+    </p>
+  </div>
+
+  <div class="condition condition-middle">
+    <p>
+      {{ form.activity_resource_relation.label_tag }}
+      {{ form.activity_resource_relation }}
+      {{ form.activity_resource_relation.errors }}
+    </p>
+  </div>
+
+  <div class="condition condition-right">
+    <p>
+      {{ form.resource_property.label_tag }}
+      {{ form.resource_property }}
+      {{ form.resource_property.errors }}
+      {{ form.resource_property_type_str }}
+    </p>
+
+    <p>
+      {{ form.resource_operator.label_tag }}
+      {{ form.resource_operator }}
+      {{ form.resource_operator.errors }}
+    </p>
+
+    <p>
+      {{ form.resource_reference_value.label_tag }}
+      {{ form.resource_reference_value }}
+      {{ form.resource_reference_value.errors }}
+      {{ form.resource_reference_value_type_str }}
+    </p>
+  </div>
+
+  <button type="button" class="btn btn-remove-relational-condition btn-remove-condition">
+    ❌ Remove Condition
+  </button>
+
+</div>

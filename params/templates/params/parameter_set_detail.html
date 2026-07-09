@@ -1,0 +1,32 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+{% block title %}Parameter Set{% endblock %}
+
+{% block content %}
+<h1>Parameter Set</h1>
+<h2>{{ parameter_set.organization.name }} - {{ parameter_set.name }}</h2>
+<div>
+    <a href="{% url 'params:list' %}" class="btn">
+        <div class="icon-container">
+            {% include "icons/arrow_back.svg" with title="Back to parameter sets" alt="Back to parameter sets" %}
+            Back to parameter sets
+
+        </div>
+    </a>
+    <button type="submit" form="params-form" class="btn">
+        <div class="icon-container">
+            {% include "icons/save.svg" with title="Save" alt="Save" %}
+            Save
+        </div>
+    </button>
+</div>
+<form method="post" id="params-form">
+    {% include "opt/Form.html" with form=params_form %}
+    <h3>Custom min turn times</h3>
+    {% include "params/formset_table.html" with formset=min_turn_time_formset %}
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'params/js/params.js' %}"></script>
+<script src="{% static 'params/js/formset_table.js' %}"></script>
+{% endblock %}

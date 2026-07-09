@@ -1,0 +1,13 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+{% block title %}Opt{% endblock %}
+{% block nav_links %}
+{% endblock %}
+{% block content %}
+<p>
+    Optimization run not found.
+</p>
+<p>
+    Please check the URL or return to the Optimization <a href="{% url 'opt:home' %}" style="color: blue;">page</a>.
+</p>
+{% endblock %}

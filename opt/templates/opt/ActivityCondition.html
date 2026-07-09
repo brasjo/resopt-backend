@@ -1,0 +1,29 @@
+<div class="activity-condition-form condition-form" data-form-index="{{ index }}">
+
+  <div class="condition">
+    <p>
+      {{ form.activity_property.label_tag }}
+      {{ form.activity_property }}
+      {{ form.activity_property.errors }}
+      {{ form.activity_property_type_str }}
+    </p>
+
+    <p>
+      {{ form.activity_operator.label_tag }}
+      {{ form.activity_operator }}
+      {{ form.activity_operator.errors }}
+    </p>
+
+    <p>
+      {{ form.activity_reference_value.label_tag }}
+      {{ form.activity_reference_value }}
+      {{ form.activity_reference_value.errors }}
+      {{ form.activity_reference_value_type_str }}
+    </p>
+  </div>
+
+  <button type="button" class="btn btn-remove-condition">
+    ❌ Remove Condition
+  </button>
+
+</div>

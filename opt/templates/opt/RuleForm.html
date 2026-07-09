@@ -1,0 +1,39 @@
+<div class="rule-form" data-rule-index="__prefix__">
+  {% if form.non_field_errors %}
+    <ul class="errorlist">
+      {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <p>
+    {{ form.id.label_tag }}
+    {{ form.id }}
+    {{ form.id.errors }}
+  </p>
+
+  <p>
+    {{ form.description.label_tag }}
+    {{ form.description }}
+    {{ form.description.errors }}
+  </p>
+
+  <p>
+    {{ form.penalty.label_tag }}
+    {{ form.penalty }}
+    {{ form.penalty.errors }}
+    {{ form.penalty_type_str }}
+  </p>
+  <p>
+    {{ form.valid_from.label_tag }}
+    {{ form.valid_from }}
+    {{ form.valid_from.errors }}
+  </p>
+  <p>
+    {{ form.valid_to.label_tag }}
+    {{ form.valid_to }}
+    {{ form.valid_to.errors }}
+  </p>
+  {{ form.DELETE.as_hidden }}
+
+</div>

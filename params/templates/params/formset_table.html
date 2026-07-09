@@ -1,0 +1,67 @@
+{% load static %}
+{% load kpis_tags %}
+
+{% if formset %}
+{{ formset.management_form }}
+
+<div class="formset-table-container">
+    <div class="table-scroll">
+        <table id="table-{{ formset.prefix }}" data-formset="{{ formset.prefix }}">
+
+            <thead>
+                <tr>
+                    {% for field in formset.empty_form.visible_fields|visible_non_checkbox %}
+                        <th class="col-{{ field.name }}">
+                            {{ field.label }}
+                        </th>
+                    {% endfor %}
+                    <th></th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for form in formset %}
+                <tr>
+                    {% for field in form.visible_fields|visible_non_checkbox %}
+                        <td class="field-{{ field.name }} {% if forloop.first %}key{% endif %}">
+
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="error">{{ field.errors }}</div>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+
+                    <td class="actions">
+                        {# DELETE must be present but hidden #}
+                        {{ form.DELETE.as_hidden }}
+
+                        {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+
+                        <button type="button"
+                                class="delete-row"
+                                data-formset="{{ formset.prefix }}">
+                            <div class="icon-container">
+                                {% include "icons/delete.svg" with title="Delete" alt="Delete" %}
+                            </div>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+
+    <button type="button"
+            class="add-row btn"
+            data-formset="{{ formset.prefix }}">
+        <div class="icon-container">
+            {% include "icons/add.svg" with title="Add Row" alt="Add Row" %}
+        </div>
+        <span>Add Row</span>
+    </button>
+</div>
+{% endif %}

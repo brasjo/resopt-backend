@@ -1,0 +1,104 @@
+<div class="condition-grid">
+    <!-- Activity column -->
+    <div class="condition-column">
+        <h3>Activity</h3>
+
+        <div class="form-row">
+            {{ form.activity_property.label_tag }}
+            {{ form.activity_property }}
+            {{ form.activity_property.errors }}
+        </div>
+
+        <div class="form-row">
+            {{ form.activity_operator.label_tag }}
+            {{ form.activity_operator }}
+            {{ form.activity_operator.errors }}
+        </div>
+
+        <div class="form-row">
+            {{ form.activity_reference_value.label_tag }}
+            {{ form.activity_reference_value }}
+            {{ form.activity_reference_value.errors }}
+        </div>
+    </div>
+
+    <!-- Relation column -->
+    <div class="condition-relation">
+        <div class="form-row">
+            {{ form.activity_resource_relation.label_tag }}
+            {{ form.activity_resource_relation }}
+            {{ form.activity_resource_relation.errors }}
+        </div>
+    </div>
+
+    <!-- Resource column -->
+    <div class="condition-column">
+        <h3>Resource</h3>
+
+        <div class="form-row">
+            {{ form.resource_property.label_tag }}
+            {{ form.resource_property }}
+            {{ form.resource_property.errors }}
+        </div>
+
+        <div class="form-row">
+            {{ form.resource_operator.label_tag }}
+            {{ form.resource_operator }}
+            {{ form.resource_operator.errors }}
+        </div>
+
+        <div class="form-row">
+            {{ form.resource_reference_value.label_tag }}
+            {{ form.resource_reference_value }}
+            {{ form.resource_reference_value.errors }}
+        </div>
+    </div>
+</div>
+<style>
+.condition-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.condition-column {
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.condition-column h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.condition-relation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.form-row {
+    margin-bottom: 1rem;
+}
+
+.form-row label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.form-row input,
+.form-row select {
+    width: 100%;
+}
+
+.errorlist {
+    margin: 0.25rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: #c0392b;
+    font-size: 0.9rem;
+}
+</style>

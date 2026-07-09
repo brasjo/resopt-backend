@@ -1,0 +1,16 @@
+{% extends "django_backend/base.html" %}
+{% load kpis_tags %}
+{% block title %}Solution {{ solution.file.name }}{% endblock %}
+
+
+{% block content %}
+{% for id in output_file_ids %}
+<p>Solution {{ id }}</p>
+{% endfor %}
+<h1>KPIs</h1>
+{% render_kpis_table kpis_rows output_file_names %}
+{% if output_file_ids|length > 1 %}
+    <h1>KPI Differences</h1>
+    {% render_kpis_table kpis_diff_rows output_file_names %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+{% block title %}Create Parameter Set{% endblock %}
+
+{% block content %}
+  <h1>Parameter Sets</h1>
+  <a href ="{% url 'params:create' %}">
+    <button id="create-new" class="btn">
+      <div class="icon-container">
+        {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+        Create New
+      </div>
+    </button>
+  </a>
+  <ul>
+    {% for ps in parameter_sets %}
+      <li>
+        <a href="{% url 'params:detail' ps.pk %}">
+          {% if ps.organization %}{{ ps.organization.name }} - {% endif %}{{ ps.name }}
+        </a>
+        {% if ps.name != 'default' %}
+          <form method="post" action="{% url 'params:remove' ps.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="delete-button">
+              <div class="icon-container">
+                {% include "icons/delete.svg" with title="Delete" alt="Delete" %}
+              </div>
+            </button>
+          </form>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li>No parameter sets available.</li>
+    {% endfor %}
+  </ul>
+
+  {% if is_paginated %}
+    <div class="pagination">
+      {% if page_obj.has_previous %}
+        <a href="?page=1">&laquo; first</a>
+        <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+      {% endif %}
+
+      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}">next</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  let selectedParamSetId = localStorage.getItem('selectedParamSetId') || null;
+  const createSelectElement = document.getElementById('create-select');
+  const buttonCreateNewElement = document.getElementById('create-new');
+  buttonCreateNewElement.addEventListener('click', () => {
+    if (name) {
+      const selectedOption = createSelectElement.options[createSelectElement.selectedIndex];
+      const selectedParamSetId = selectedOption.value;
+      window.location.href = `${window.DJANGO.paramsCreateFromUrl.replace('0', selectedParamSetId)}?name=${encodeURIComponent(name)}`;
+    }
+  });
+</script>
+{% endblock %}

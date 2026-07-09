@@ -1,0 +1,23 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+{% block title %}Parameter sets{% endblock %}
+{% block meta %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+{% endblock %}
+{% block nav_links %}
+<button type="submit" form="parameter-form">
+    <img src="{% static 'icons/save.svg' %}" alt="Save" class="icon">
+    Save
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Parameters</h1>
+    <div class="container">
+        <p>Selected Parameter Set</p>
+        <select id="parameterset-select"></select>
+    </div>
+    {{ form.as_p }}
+{% endblock %}

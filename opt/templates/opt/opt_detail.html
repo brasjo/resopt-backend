@@ -1,0 +1,226 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+{% block title %}Opt{% endblock %}
+{% block meta %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+{% endblock %}
+{% block styles %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'opt/css/styles.css' %}">
+{% endblock %}
+{% block nav_links %}
+{% endblock %}
+{% block content %}
+<h1>Optimization Scenario</h1>
+<div class="container">
+    <div class="button-group">
+        <form id="create-opt-form" action="{% url 'opt:home' %}" method="post">
+            {% csrf_token %}
+            <button id="create-new" type="submit" class="btn">
+                <div class="icon-container">
+                    {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+                    Create New Scenario
+                </div>
+            </button>
+        </form>
+        {% if opt_run %}
+        <form id="save-opt-form" action="{% url 'opt:detail' run_id=opt_run.id %}" method="post">
+            {% csrf_token %}
+            <button type="submit" form="save-opt-form" class="btn">
+                <div class="icon-container">
+                    {% include "icons/save.svg" with title="Save" alt="Save" %}
+                    Save
+                </div>
+            </button>
+        </form>
+        <form id="clone-opt-form" action="{% url 'opt:clone' run_id=opt_run.id %}" method="post">
+            {% csrf_token %}
+            <button id="opt-clone" type="submit" class="btn">
+                <div class="icon-container">
+                    {% include "icons/file_copy.svg" with title="Clone" alt="Clone" %}
+                     Clone
+                </div>
+            </button>
+        </form>
+        <form id="delete-opt-logs-form" action="{% url 'opt:delete-logs' run_id=opt_run.id %}" method="post">
+            {% csrf_token %}
+            <button id="opt-delete-logs" type="submit" class="btn">
+                <div class="icon-container">
+                    {% include "icons/delete_history.svg" with title="Delete Logs" alt="Delete Logs" %}
+                    <span>Delete Logs</span>
+                </div>
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    <div>
+        <p>Open Opt Run</p>
+        <select id="opt-select"></select>
+        <a href="#" id="open-opt-run-link" class="btn">Select</a>
+    </div>
+</div>
+{% include "viz/dragAndDrop.html" %}
+<form id="opt-run-form" method="post">
+    <div class="tabs">
+        <ul class="tab-list">
+            <li class="tab-item active" data-id="tab-scenario" >Scenario</li>
+            <li class="tab-item" data-id="tab-rules" >Rules</li>
+            <li class="tab-item" data-id="tab-actions" >Actions</li>
+            <li class="tab-item" data-id="tab-parameters">Parameters</li>
+            <li class="tab-item" data-id="tab-logs">Logs</li>
+        </ul>
+        <div class="tab-content-list">
+            <div class="tab-content active" id="tab-scenario">
+                <h2>The input builder contains the following data:</h2>
+                <div class="flex-col gap-5">
+                    <div class="keyvalue">
+                        <p>Flights:</p>
+                        <p>{{ num_flights }}</p>
+                    </div>
+                    <div class="keyvalue">
+                        <p>Aircraft:</p>
+                        <p>{{ num_aircrafts }}</p>
+                    </div>
+                    <div class="keyvalue">
+                        <p>Maintenances:</p>
+                        <p>{{ num_maintenances }}</p>
+                    </div>
+                    <h2>Scenario Solutions</h2>
+                    <div class="keyvalue">
+                        <p>Solutions:</p>
+                        <p>{{ num_solutions }}</p>
+                    </div>
+
+                    <h2>Meta</h2>
+                    <div class="keyvalue">
+                        <p>ID:</p>
+                        <p>{{ opt_run.id }}</p>
+                    </div>
+                    <div class="keyvalue">
+                        <p>Run directory:</p>
+                        <p>{{ opt_run.run_directory }}</p>
+                    </div>
+                    <div class="keyvalue">
+                        <p>Created at:</p>
+                        <p>{{ opt_run.created_at }}</p>
+                    </div>
+                    <div class="keyvalue">
+                        <p>Status:</p>
+                        <p>{{ opt_run.status|title }}</p>
+                    </div>
+                    {% csrf_token %}
+                    {% include "opt/Form.html" with form=opt_form %}
+                </div>
+            </div>
+            <div class="tab-content" id="tab-rules">
+                <h2>Rules</h2>
+                {% include "params/rule_formset.html" with formset=rule_formset %}
+            </div>
+            <div class="tab-content" id="tab-actions">
+                <h2>Actions</h2>
+                <div class="flex-col gap-5">
+                    <a href="{% url 'opt:individual-validation' opt_run.id %}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/verified.svg" with title="Individual Validation" alt="Individual Validation" %}
+                            Individual Validation
+                        </div>
+                    </a>
+                    <a href="{% url 'opt:deassign-all-flights' opt_run.id %}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/arrow_or_edge.svg" with title="Deassign all Flights" alt="Deassign all Flights" %}
+                            Deassign all Flights
+                        </div>
+                    </a>
+                    <a href="{% url 'opt:delete-all-solutions' opt_run.id %}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/delete_history.svg" with title="Delete all Solutions" alt="Delete all Solutions" %}
+                            Delete all Solutions
+                        </div>
+                    </a>
+                    <a href="{% url 'opt:relational-validation' opt_run.id %}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/graph_4.svg" with title="Relational Validation" alt="Relational Validation" %}
+                            Relational Validation
+                        </div>
+                    </a>
+                    <a href="{{ opt_run.user_input.url }}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/download.svg" with title="Download User Input File" alt="Download User Input File" %}
+                            Download User Input File
+                        </div>
+                    </a>
+                    <a href="{{ opt_run.input_builder.url }}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/download.svg" with title="Download Input Builder File" alt="Download Input Builder File" %}
+                            Download Input Builder File
+                        </div>
+                    </a>
+                    <a href="{% url 'opt:generate-input-file' opt_run.id %}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/convert_to_text.svg" with title="Generate Input File" alt="Generate Input File" %}
+                            Generate Input File
+                        </div>
+                    </a>
+                    <a href="{% url 'opt:send-to-optimizer' opt_run.id %}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/azm.svg" with title="Send to Optimizer" alt="Send to Optimizer" %}
+                            Send to Optimizer
+                        </div>
+                    </a>
+                    <a href="{% url 'opt:solution-list' opt_run.id %}" class="btn btn-primary">
+                        <div class="icon-container">
+                            {% include "icons/lightbulb.svg" with title="Solutions List" alt="Solutions List" %}
+                            Solutions List
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="tab-content" id="tab-parameters">
+                <h2>Parameters</h2>
+                <span>Parameter set:</span>
+                <select id="params-select">
+                    {% for param_set in parameter_sets %}
+                    <option value="{{ param_set.id }}" data-description="{{ param_set.description|escapejs }}">
+                        {{ param_set.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <a class="btn" href="#" id="choose-params-link">Replace</a>
+                {% csrf_token %}
+                {% include "opt/Form.html" with form=params_form %}
+                <h3>Custom Minimum Turn Times:</h3>
+                {% include "params/formset_table.html" with formset=min_turn_time_formset %}
+            </div>
+            <div class="tab-content" id="tab-logs">
+                {% if log_entries %}
+                <h2>Logs</h2>
+                <div class="log-entries">
+                    {% for entry in log_entries %}
+                    <div class="log-entry log-{{ entry.level|lower }}">
+                        <span class="log-timestamp">{{ entry.timestamp|date:"Y-m-d H:i:s" }}</span>
+                        <span class="log-level log-{{ entry.level|lower }}">{{ entry.level }}</span>
+                        <span class="log-message">{{ entry.msg }}</span>
+                        {% if entry.source %}
+                        <span class="log-source">[{{ entry.source }}]</span>
+                        {% endif %}
+                        {% if entry.extra %}
+                        <pre class="log-extra">{{ entry.extra|json_script:"extra-data" }}</pre>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p>No logs available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'viz/drag_and_drop.js' %}"></script>
+<script src="{% static 'opt/js/opt.js' %}"></script>
+<script src="{% static 'params/js/formset_table.js' %}"></script>
+{% endblock %}

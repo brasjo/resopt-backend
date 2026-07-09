@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EvoSky | Aircraft Scheduling Optimized by Evolutionary Intelligence</title>
+  <meta name="description" content="EvoSky automatically generates efficient aircraft schedules while respecting operational constraints, maintenance, fleet compatibility, and station capabilities." />
+  <style>
+    :root {
+      --bg: #08111f;
+      --bg-soft: #0e1a30;
+      --panel: rgba(255,255,255,0.06);
+      --panel-strong: rgba(255,255,255,0.10);
+      --line: rgba(255,255,255,0.12);
+      --text: #eef4ff;
+      --muted: #a9b6d3;
+      --accent: #7dd3fc;
+      --accent-2: #6ee7b7;
+      --accent-3: #fbbf24;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --radius: 24px;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(125, 211, 252, 0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(110, 231, 183, 0.12), transparent 24%),
+        linear-gradient(180deg, #07101d 0%, #091426 42%, #08111f 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    .container {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+      background: rgba(8, 17, 31, 0.72);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(125,211,252,0.25), rgba(110,231,183,0.22));
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: var(--shadow);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 20px;
+      border-radius: 999px;
+      font-weight: 700;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #93c5fd);
+      color: #07111f;
+      box-shadow: 0 14px 32px rgba(125,211,252,0.22);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.12);
+      color: var(--text);
+    }
+
+    .hero {
+      padding: 88px 0 56px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 36px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(125, 211, 252, 0.22);
+      background: rgba(125, 211, 252, 0.08);
+      color: #bfe9ff;
+      font-size: 0.92rem;
+      margin-bottom: 18px;
+    }
+
+    h1, h2, h3 { margin: 0; line-height: 1.08; }
+
+    h1 {
+      font-size: clamp(2.7rem, 4.7vw, 5rem);
+      letter-spacing: -0.04em;
+      max-width: 10.5ch;
+    }
+
+    .hero p {
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 1.1rem;
+      max-width: 62ch;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 30px;
+    }
+
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 1.2rem;
+      margin-bottom: 4px;
+    }
+
+    .muted { color: var(--muted); }
+
+    .hero-card, .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 22px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .mini-label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+
+    .generation-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .curve-wrap {
+      margin-top: 16px;
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(3, 10, 22, 0.55);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend i {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    section {
+      padding: 42px 0;
+    }
+
+    .section-head {
+      max-width: 760px;
+      margin-bottom: 26px;
+    }
+
+    .section-head h2 {
+      font-size: clamp(2rem, 3vw, 3rem);
+      letter-spacing: -0.03em;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      margin: 14px 0 0;
+      font-size: 1.05rem;
+    }
+
+    .philosophy {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    .philosophy .panel {
+      padding: 24px;
+    }
+
+    .quote {
+      font-size: 1.3rem;
+      letter-spacing: -0.02em;
+    }
+
+    .grid-3, .grid-2 {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .feature-card {
+      padding: 22px;
+      border-radius: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      min-height: 100%;
+    }
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: rgba(125, 211, 252, 0.12);
+      border: 1px solid rgba(125, 211, 252, 0.16);
+      margin-bottom: 16px;
+      font-size: 1.25rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1.18rem;
+      margin-bottom: 10px;
+    }
+
+    .feature-card ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    .feature-card li + li { margin-top: 8px; }
+
+    .benefit-card {
+      padding: 22px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .integration-box {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 20px;
+      padding: 24px;
+    }
+
+    .list-clean {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .list-clean li {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      color: var(--muted);
+    }
+
+    .list-clean li:last-child { border-bottom: 0; }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .tag {
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .team-card {
+      padding: 26px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .cta {
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .contact-form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .contact-form input,
+    .contact-form textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: var(--text);
+      font: inherit;
+    }
+
+    .contact-form textarea { min-height: 120px; resize: vertical; }
+    .contact-form input::placeholder,
+    .contact-form textarea::placeholder { color: #8fa0c1; }
+
+    footer {
+      padding: 28px 0 48px;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid,
+      .philosophy,
+      .integration-box,
+      .team-card,
+      .cta,
+      .grid-3,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-links { display: none; }
+      .stat-row { grid-template-columns: 1fr; }
+      h1 { max-width: none; }
+      .hero { padding-top: 64px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="#top" aria-label="EvoSky home">
+        <span class="brand-badge">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 14.5L21 4l-6.5 16-2.7-5.8L3 14.5Z" stroke="#DFF8FF" stroke-width="1.4" fill="rgba(125,211,252,0.28)"/>
+          </svg>
+        </span>
+        <span>EvoSky</span>
+      </a>
+      <div class="nav-links">
+        <a href="#philosophy">Philosophy</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#benefits">Benefits</a>
+        <a href="#integration">Integration</a>
+        <a href="#team">Team</a>
+        <a href="#demo" class="btn btn-secondary">Request Demo</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'dashboard:home' %}" class="btn btn-secondary">Dashboard</a>
+          <form onclick="this.submit()" action="{% url 'users-web:logout' %}" method="post" class="btn btn-secondary">
+            {% csrf_token %}
+            Logout
+          </form>
+        {% else %}
+          <a href="{% url 'users:login' %}" class="btn btn-secondary">Login</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="reveal is-visible">
+          <div class="eyebrow">Evolutionary intelligence for airline scheduling</div>
+          <h1>Aircraft Scheduling Optimized by Evolutionary Intelligence</h1>
+          <p>
+            EvoSky automatically generates efficient aircraft schedules while respecting operational constraints such as maintenance, fleet compatibility, station capabilities, and assignment rules defined by your operation.
+          </p>
+          <div class="hero-actions">
+            <a href="#demo" class="btn btn-primary">Request Demo</a>
+            <a href="#capabilities" class="btn btn-secondary">See Capabilities</a>
+          </div>
+          <div class="stat-row">
+            <div class="stat-card">
+              <strong>Constraint-aware</strong>
+              <span class="muted">Schedules that reflect real operational boundaries from the start.</span>
+            </div>
+            <div class="stat-card">
+              <strong>Scenario-driven</strong>
+              <span class="muted">Compare multiple solutions and understand why one performs better.</span>
+            </div>
+            <div class="stat-card">
+              <strong>Integration-ready</strong>
+              <span class="muted">Designed for cloud deployment and automated exchange with downstream systems.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-card reveal">
+          <div class="mini-label">Optimization behavior</div>
+          <div class="generation-card">
+            <strong>Improvement across generations</strong>
+            <p class="muted" style="margin:8px 0 0;">The schedule evolves over repeated iterations, progressively converging toward a stronger operational solution.</p>
+            <div class="curve-wrap">
+              <svg viewBox="0 0 520 280" width="100%" height="auto" role="img" aria-label="Optimization curve showing cost reduction across generations">
+                <defs>
+                  <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#7dd3fc" />
+                    <stop offset="100%" stop-color="#6ee7b7" />
+                  </linearGradient>
+                </defs>
+                <rect x="0" y="0" width="520" height="280" fill="transparent" />
+                <g opacity="0.18" stroke="#dbeafe" stroke-width="1">
+                  <line x1="56" y1="36" x2="56" y2="232"/>
+                  <line x1="56" y1="232" x2="484" y2="232"/>
+                  <line x1="56" y1="76" x2="484" y2="76"/>
+                  <line x1="56" y1="116" x2="484" y2="116"/>
+                  <line x1="56" y1="156" x2="484" y2="156"/>
+                  <line x1="56" y1="196" x2="484" y2="196"/>
+                </g>
+                <g fill="#9fb0d3" font-size="12" font-family="Inter, sans-serif">
+                  <text x="8" y="40">Cost</text>
+                  <text x="64" y="256">0</text>
+                  <text x="150" y="256">10</text>
+                  <text x="236" y="256">20</text>
+                  <text x="322" y="256">30</text>
+                  <text x="408" y="256">40</text>
+                  <text x="460" y="256">50</text>
+                  <text x="392" y="276">Generation</text>
+                </g>
+                <path d="M56 68 C92 72, 104 92, 132 110 S184 136, 220 152 S280 162, 306 172 S350 182, 382 188 S434 194, 484 198"
+                      fill="none" stroke="url(#lineGrad)" stroke-width="4" stroke-linecap="round" />
+                <g fill="#7dd3fc">
+                  <circle cx="56" cy="68" r="5"/>
+                  <circle cx="132" cy="110" r="5"/>
+                  <circle cx="220" cy="152" r="5"/>
+                  <circle cx="306" cy="172" r="5"/>
+                  <circle cx="382" cy="188" r="5"/>
+                  <circle cx="484" cy="198" r="5"/>
+                </g>
+              </svg>
+              <div class="legend">
+                <span><i style="background: var(--accent);"></i> Operational cost trend</span>
+                <span><i style="background: var(--accent-2);"></i> Stronger schedule over time</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="philosophy">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Inspired by the logic of evolution</h2>
+          <p>
+            Complex systems rarely reveal their best answer immediately. The strongest solutions emerge through exploration, adaptation, and selection. EvoSky applies that same principle to aircraft scheduling.
+          </p>
+        </div>
+        <div class="philosophy">
+          <div class="panel reveal">
+            <p class="quote">“Nature does not search for a single obvious answer. It explores possibilities until stronger solutions survive.”</p>
+            <p class="muted" style="margin-top:16px;">
+              EvoSky continuously evolves scheduling scenarios, evaluates operational feasibility, and drives the search toward stronger aircraft rotations that align with the rules of the airline.
+            </p>
+          </div>
+          <div class="panel reveal">
+            <h3 style="font-size:1.15rem; margin-bottom:10px;">What that means in practice</h3>
+            <ul class="list-clean">
+              <li>Thousands of potential assignments can be explored instead of relying on manual trial and error.</li>
+              <li>Operational constraints are respected during the search, not added afterward as an afterthought.</li>
+              <li>Alternative scenarios can be compared, measured, and explained with clear reports.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="capabilities">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Capabilities built for real airline operations</h2>
+          <p>
+            EvoSky is designed to go beyond basic aircraft-to-flight matching. It supports operational policies, maintenance logic, and configurable assignment behavior so the schedule reflects how the airline actually wants to operate.
+          </p>
+        </div>
+        <div class="grid-3">
+          <article class="feature-card reveal">
+            <div class="feature-icon">✈️</div>
+            <h3>Constraint-Driven Aircraft Assignment</h3>
+            <p class="muted">Build feasible aircraft schedules while respecting the operational rules that shape day-to-day execution.</p>
+            <ul>
+              <li>Minimum turnaround time</li>
+              <li>Station continuity</li>
+              <li>Fleet and aircraft compatibility</li>
+              <li>Availability windows and service periods</li>
+            </ul>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon">🧩</div>
+            <h3>Rules Matrix Engine</h3>
+            <p class="muted">Let planners define which activity-resource matches should be preferred, non-preferred, or forbidden.</p>
+            <ul>
+              <li>Direct control over assignment logic</li>
+              <li>Policy-driven optimization behavior</li>
+              <li>Immediate visibility into rule impact through reporting</li>
+              <li>Supports operational nuance beyond static compatibility checks</li>
+            </ul>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon">🛠️</div>
+            <h3>Maintenance Routing with Station Capabilities</h3>
+            <p class="muted">Automatically route aircraft toward stations that are both capable and available to perform the maintenance they require.</p>
+            <ul>
+              <li>Station capability awareness</li>
+              <li>Station capacity consideration</li>
+              <li>Maintenance requirement alignment</li>
+              <li>Supports operationally realistic maintenance planning</li>
+            </ul>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon">🔗</div>
+            <h3>Multi-Leg Flight Integrity</h3>
+            <p class="muted">Keep linked activities together when they must be treated as one operational unit inside the schedule.</p>
+            <ul>
+              <li>Preserves valid grouped activity structure</li>
+              <li>Reduces risk of broken operational sequences</li>
+              <li>Supports real-world flight grouping behavior</li>
+            </ul>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon">📊</div>
+            <h3>Scenario Comparison & Cost Transparency</h3>
+            <p class="muted">Compare schedules side by side and understand why one scenario performs better than another.</p>
+            <ul>
+              <li>Cost breakdown per leg</li>
+              <li>Cost breakdown per aircraft</li>
+              <li>Total scenario comparison</li>
+              <li>Visual explanation of tradeoffs and outcomes</li>
+            </ul>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon">🧠</div>
+            <h3>Operationally Guided Optimization</h3>
+            <p class="muted">Explore strong schedules while keeping the search aligned with the priorities and constraints of the airline.</p>
+            <ul>
+              <li>Supports what-if evaluation across scenarios</li>
+              <li>Designed for measurable tradeoff analysis</li>
+              <li>Structured to evolve with additional operational logic</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="benefits">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Operational value that can be measured</h2>
+          <p>
+            The strongest result is not only a feasible schedule. It is a schedule the planning team can evaluate, compare, and trust.
+          </p>
+        </div>
+        <div class="grid-2">
+          <div class="benefit-card reveal">
+            <h3>Higher aircraft utilization</h3>
+            <p class="muted">Use fleet resources more effectively across the network while respecting operational boundaries.</p>
+          </div>
+          <div class="benefit-card reveal">
+            <h3>Faster schedule creation</h3>
+            <p class="muted">Reduce manual scheduling effort and generate stronger candidate schedules faster.</p>
+          </div>
+          <div class="benefit-card reveal">
+            <h3>Greater planner trust</h3>
+            <p class="muted">Make schedule quality visible through reporting, scenario comparison, and cost transparency.</p>
+          </div>
+          <div class="benefit-card reveal">
+            <h3>Better operational control</h3>
+            <p class="muted">Reflect airline-specific policies through configurable rules rather than one-size-fits-all logic.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="integration">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Designed to fit into airline environments</h2>
+          <p>
+            EvoSky is built to support real operational workflows, secure data exchange, and automated delivery of optimization results into connected systems.
+          </p>
+        </div>
+        <div class="panel integration-box reveal">
+          <div>
+            <h3 style="font-size:1.25rem; margin-bottom:12px;">Integration & deployment</h3>
+            <p class="muted">
+              Cloud-based deployment supports flexible execution and data flow, while outputs can be delivered automatically to downstream systems through configurable interfaces.
+            </p>
+            <div class="tag-row">
+              <span class="tag">AWS cloud based</span>
+              <span class="tag">Automated exports</span>
+              <span class="tag">API-driven exchange</span>
+              <span class="tag">Interface ready</span>
+            </div>
+          </div>
+          <div>
+            <ul class="list-clean">
+              <li>Secure import of operational scheduling inputs</li>
+              <li>Automated export of schedule outputs and scenario results</li>
+              <li>Support for integration into airline planning and execution environments</li>
+              <li>Built to evolve with connected workflows and downstream consumers</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="team">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Built by people who understand the domain</h2>
+          <p>
+            EvoSky is being shaped by a team with hands-on airline experience and direct exposure to optimization challenges in real operational environments.
+          </p>
+        </div>
+        <div class="panel team-card reveal">
+          <div>
+            <h3 style="font-size:1.2rem; margin-bottom:10px;">Domain understanding</h3>
+            <p class="muted">
+              The founding team combines practical work across airline operational systems with direct involvement in optimization-related problem solving.
+            </p>
+          </div>
+          <div>
+            <h3 style="font-size:1.2rem; margin-bottom:10px;">Product vision</h3>
+            <p class="muted">
+              The goal is simple: create an aircraft scheduling product that is powerful, explainable, operationally realistic, and useful for real planning teams.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo">
+      <div class="container">
+        <div class="panel cta reveal">
+          <div>
+            <h2 style="font-size: clamp(2rem, 3.2vw, 3rem); letter-spacing:-0.03em;">Interested in seeing EvoSky in action?</h2>
+            <p class="muted" style="margin-top:14px; max-width:58ch;">
+              Request a demo to explore how EvoSky can support your aircraft scheduling process, compare alternative scenarios, and bring more visibility into operational tradeoffs.
+            </p>
+          </div>
+          <form class="contact-form" onsubmit="event.preventDefault(); alert('Demo request captured. Replace this form action with your real backend or email workflow.');">
+            <input type="text" placeholder="Your name" aria-label="Your name" />
+            <input type="email" placeholder="Work email" aria-label="Work email" />
+            <textarea placeholder="Tell us a little about your operation" aria-label="Tell us a little about your operation"></textarea>
+            <button class="btn btn-primary" type="submit">Request Demo</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container" style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+      <span>© <span id="year"></span> EvoSky. All rights reserved.</span>
+      <span>Aircraft scheduling optimized by evolutionary intelligence.</span>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.16 });
+
+    document.querySelectorAll('.reveal:not(.is-visible)').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

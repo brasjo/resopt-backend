@@ -1,0 +1,17 @@
+<div class="parameters">
+{% csrf_token %}
+{% for field in form %}
+  <div class="form-group">
+      {{ field.label_tag }}
+      {{ field }}
+
+      {% if field.help_text %}
+          <small class="help-text">{{ field.help_text }}</small>
+      {% endif %}
+
+      {% for error in field.errors %}
+          <div class="error">{{ error }}</div>
+      {% endfor %}
+  </div>
+{% endfor %}
+</div>

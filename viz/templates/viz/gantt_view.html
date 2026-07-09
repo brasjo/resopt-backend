@@ -1,0 +1,8 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+{% block styles %}
+<link rel="stylesheet" href="{% static 'viz/styles.css' %}">
+{% endblock %}
+{% block content %}
+{% include "viz/Gantt.html" %}
+{% endblock %}

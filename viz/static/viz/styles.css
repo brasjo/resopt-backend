@@ -1,0 +1,616 @@
+:root {
+    --activity-resource-spacing: 6px; /* Must be devisible by 2 */
+    --default-resource-height: 40px;
+    --menu-width: 310px;
+    --default-day-spacing: 350px;
+    --gantt-width: 1000px;
+    --aircraft-width: 200px;
+    --activity-height: 50px;
+    --margin-top: 50px;
+    --time-ruler-height: 50px;
+
+    --flight-color: lightgreen;
+    --service-type-F-color: var(--flight-color);
+    --service-type-X-color: lightpink;
+    --service-type-A-color: steelblue;
+    --service-type-Z-color: lightblue;
+    --service-type-E-color: var(--service-type-Z-color);
+    --service-type-H-color: tomato;
+
+    --maintenance-color: yellow;
+    --animation-duration: 1.5s;
+}
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+.curtain {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: var(--time-ruler-height);
+    z-index: 3;
+    display: flex;
+}
+.curtain-aircraft {
+    height: 100%;
+    width: var(--aircraft-width);
+    background-color: var(--color-background-primary);
+}
+.curtain-aircraft img {
+    height: 100%;
+    width: 100%;
+}
+.curtain-gantt {
+    height: 100%;
+    background-color: transparent;
+    width: calc(100vw - var(--aircraft-width));
+}
+.flex {
+    display: flex;
+    gap: 5px;
+}
+.flex * {
+    align-items: center;
+}
+.flex-grow {
+    flex-grow: 1;
+}
+.toolbar {
+    display: flex;
+    gap: 5px;
+    padding: 5px;
+}
+.toolbar > * {
+    padding: 5px;
+}
+#animation-duration-value,
+#animation-interval-value {
+    width: 30px;
+    text-align: right;
+}
+#menu {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: var(--menu-width);
+    height: 100vh;
+    top: 0;
+    left: calc(100vw + 10px);
+    background-color: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    z-index: 3;
+    transition: left 0.5s;
+    overflow-y: auto;
+}
+#menu.active {
+    transition: left 0.5s;
+    left: calc(100vw - 310px);
+}
+#menu-graph {
+    top: 10px;
+    position: fixed;
+    width: calc(100vw - var(--menu-width) - 20px);
+    max-width: 600px;
+    height: calc(100vh - 20px);
+    padding: 10px;
+    background-color: var(--color-background-primary);
+    z-index: 4;
+    right: calc(var(--menu-width) + 10px);
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: transparent;
+    visibility: hidden;
+    transition: opacity 1s ease-in-out, visibility 0s linear 1s;
+}
+#menu-graph.active {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.5s ease-in-out;
+}
+#menu-graph.show {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.5s ease-in-out;
+}
+#info #menu-graph-button {
+    text-align: center;
+    padding: 5px;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+}
+#info #menu-button-graph {
+    padding: 5px;
+}
+#info #menu-button {
+    padding: 5px;
+}
+#solutions-fieldset {
+    max-height: 340px;
+    overflow-y: auto;
+    font-size: var(--font-size-medium);
+}
+.view-container {
+    width: calc(100vw - var(--menu-width));
+}
+div.solution {
+    font-size: var(--font-size-medium);
+    cursor: pointer;
+}
+
+div.active {
+    background-color: lightgreen;
+}
+.solution-menu {
+    display: flex;
+    gap: 5px;
+}
+fieldset div:hover {
+    background-color: lightblue;
+}
+label {
+    font-size: var(--font-size-large);
+    font-weight: bold;
+    cursor: pointer;
+}
+label * {
+    cursor: pointer;
+}
+form > * {
+    padding: 5px;
+    font-size: var(--font-size-large);
+}
+#info {
+    background-color: white;
+    border: 1px solid black;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    position: fixed;
+    top: calc(100vh - 184px);
+    left: calc(100vw - 284px);
+    z-index: 4;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+#info * {
+    font-size: var(--font-size-large);
+    padding: 0 0 5px 0;
+    margin: 0;
+}
+#progress {
+    margin-left: 10px;
+}
+#aircraft-view {
+    display: flex;
+    flex-direction: row;
+}
+#aircraft-column {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    background-color: var(--color-background-primary);
+    width: var(--aircraft-width);
+    height: 100vh;
+    overflow-y: auto;
+    position: fixed;
+    border-right: 2px solid black;
+    padding-top:  var(--time-ruler-height);
+    z-index: 2;
+}
+#aircraft-column::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+#aircraft-column .aircraft:first-child {
+    border-top: 1px solid black;
+}
+.aircraft {
+    height: var(--activity-height);
+    background-color: white;
+    border-bottom: 1px solid black;
+    text-align: center;
+    overflow-y: hidden;
+    font-size: var(--font-size-large);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.aircraft * {
+    font-size: var(--font-size-large);
+}
+.chart {
+    position: relative;
+}
+.chart .flights:first-child {
+    border-top: 1px solid black;
+}
+.flight {
+    background-color: var(--flight-color);
+}
+.flight[data-service-type="F"] {
+    background-color: var(--service-type-F-color);
+}
+.flight[data-service-type="X"] {
+    background-color: var(--service-type-X-color);
+}
+.flight[data-service-type="H"] {
+    background-color: var(--service-type-H-color);
+}
+.flight[data-service-type="A"] {
+    background-color: var(--service-type-A-color);
+}
+.flight[data-service-type="E"] {
+    background-color: var(--service-type-E-color);
+}
+.flight[data-service-type="Z"] {
+    background-color: var(--service-type-Z-color);
+}
+.flight.gray {
+    background-color: lightgray;
+    border-color: #00000033;
+}
+#gantt {
+    margin-left: var(--aircraft-width);
+    width: 100vw;
+    height: 100vh;
+    display: inline-block;
+    overflow-x: auto;
+    overscroll-behavior: none;
+}
+#gantt::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+.time-ruler {
+    height: var(--time-ruler-height);
+    top: 0;
+    position: sticky;
+    border-top: 2px solid black;
+    border-bottom: 1px solid black;
+    z-index: 3;
+    background-color: var(--color-background-primary);
+}
+
+/* Style for the ticks (small lines on the ruler) */
+.tick {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    background-color: black;
+}
+
+/* Long ticks for day markers */
+.tick.large {
+    height: 100%;
+}
+/* Add dates below large ticks using ::after */
+
+.tick.large::after {
+    content: attr(data-date);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 30px;  /* Position below the large tick */
+    left: 4px;  /* Adjust to center under the tick */
+    font-size: 14px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+/* Small ticks for 6or24-hour markers */
+.tick.small {
+    height: 14px;
+}
+
+.tick.small::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 14px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+/* Small ticks for 30-min markers */
+.tick.smaller {
+    height: 10px;
+}
+
+.tick.smaller::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 10px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+/* Small ticks for 15/45-min markers */
+.tick.smallest {
+    height: 8px;
+}
+
+.tick.smallest::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 8px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+.vertical-line {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    background-color: rgba(0, 0, 0, 0.2); /* Light grey line */
+    pointer-events: none; /* So it doesn't interfere with user interactions */
+}
+.activity.maintenance {
+    cursor: pointer;
+    z-index: 1;
+    overflow: hidden;
+    position: absolute;
+    height: var(--activity-height);
+    background-color: var(--maintenance-color);
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 2px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: center;
+    align-items: center;
+    text-wrap: nowrap;
+}
+.activity.maintenance.gray {
+    background-color: lightgray;
+    border-color: #00000033;
+}
+/* Rectangle below the ruler that scales */
+.activity {
+    cursor: pointer;
+    z-index: 1;
+    position: absolute;
+    height: var(--activity-height);
+    border: 1px solid green;
+    overflow: hidden;
+    border-radius: 3px;
+    transform: translateY(0);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    padding: 2px;
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+    align-items: center;
+    text-wrap: nowrap;
+}
+.activity > * {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.floating-shadow {
+    z-index: 3;
+    transform: translateY(-2px);
+    box-shadow: -10px 20px 30px rgba(0, 0, 0, 0.2); /* adjust values as needed */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.station-label {
+    position: absolute;
+    text-wrap: nowrap;
+    transform: translate(-50%, -50%);
+}
+.left {
+    text-align: left;
+}
+.right {
+    text-align: right;
+}
+.horizontal-line {
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background-color: lightgray;
+}
+/* Tooltip container */
+.tooltip-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Tooltip text */
+.tooltip-wrapper .tooltip {
+    font-size: var(--font-size-medium);
+    visibility: hidden;
+    width: 160px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    padding: 5px;
+    position: absolute;
+    z-index: 3;
+    transform: translate(-5%, 28%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.tooltip.visible {
+    visibility: visible;
+    opacity: 1;
+}
+#circle {
+    width: 16px;
+    height: 16px;
+    position: relative;
+    margin: auto 0 auto 0;
+    border-radius: 50%;
+    border-width: 2px;
+    background-color: transparent;
+    transition: background-color 0.5s ease;
+    border: darkgreen solid 1px;
+}
+.select-all {
+    position: relative;
+}
+#select-all {
+    position: relative;
+}
+.select-all * {
+    margin: auto 0 auto 0;
+}
+#finder {
+    position: fixed;
+    top: calc(100vh - 70px);
+    left: calc(100vw - 520px);
+    z-index: 4;
+    background-color: darkslategray;
+    width: fit-content;
+    height: fit-content;
+    display: none;
+}
+#finder.show {
+    display: flex;
+}
+#finder-input {
+    font-size: var(--font-size-large);
+    width: 200px;
+    height: 30px;
+}
+.multileg {
+    background-color: lightblue;
+    border-color: darkblue;
+}
+.gray {
+    background-color: lightgray;
+    border-color:#00000033;
+}
+canvas {
+    height: 230px !important;
+    width: 100% !important;
+    background-color: var(--color-background-primary);
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Soft shadow */
+    padding: 10px;
+}
+
+/* Optional: Add a glowing effect on hover */
+canvas:hover {
+    border-color: rgba(0, 123, 255, 0.5);
+    box-shadow: 0 0 15px rgba(0, 123, 255, 0.3);
+    transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+#graph-icon {
+    background-size: cover;  /* Ensures the image covers the entire element */
+    background-position: center;  /* Centers the image */
+    background-repeat: no-repeat;  /* Prevents repeating */
+    width: 20px;
+    height: 20px;
+}
+.kpis-icon {
+    background-image: url(http://localhost:8000/kpis_icon.png);
+    background-size: cover;  /* Ensures the image covers the entire element */
+    background-position: center;  /* Centers the image */
+    background-repeat: no-repeat;  /* Prevents repeating */
+    width: 20px;
+    height: 20px;
+}
+#menu-kpi {
+    background-color: white;
+    border: 1px solid black;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    position: fixed;
+    top: 10px;
+    right: calc(var(--menu-width) + 10px);
+    z-index: 4;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    visibility: hidden;
+    width: 280px;
+}
+#menu-kpi.show {
+    visibility: visible;
+}
+
+#menu-kpi h1 {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: var(--font-size-large);
+}
+
+#kpi-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#kpi-table thead {
+    background-color: #007BFF;
+    color: white;
+    font-weight: bold;
+}
+
+#kpi-table th, #kpi-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    font-size: var(--font-size-medium);
+}
+
+#kpi-table td.number {
+    text-align: right;
+}
+
+#kpi-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+#kpi-table tbody tr:hover {
+    background-color: #d6e9ff;
+    transition: 0.3s;
+}
+
+#kpi-table th {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+@media (max-width: 600px) {
+    #kpi-table th, #kpi-table td {
+        padding: 8px;
+    }
+}
+.rotation {
+    background-color: #c5e1ff;
+    border: 1px solid #0056b3;
+    border-radius: 5px;
+    position: absolute;
+    transition: top 0.5s ease;
+}
+.rotation:hover {
+    cursor: pointer;
+}
+.animate {
+    transition: left var(--animation-duration) cubic-bezier(0.25, 0.46, 0.45, 0.94), top var(--animation-duration) cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.rotation.gray {
+    background-color: lightgray;
+    border-color: #00000033;
+}
+#select-opt-run {
+    width: 100%;
+    font-size: var(--font-size-medium);
+}

@@ -1,0 +1,160 @@
+{% load static %}
+{% include 'django_backend/nav.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="/files/viz_styles.css">
+    <link rel=icon href="favicon.webp">
+    <script src="/files/graph.js" type="module"></script>
+    <title>Visualizer</title>
+</head>
+<style>
+    body * {
+        font-family: "Inter", monospace;
+    }
+</style>
+<body>
+    <div class="curtain">
+        <div class="curtain-aircraft">
+            <img src="{% static '/viz/logo_text.png' %}" alt="Logo">
+        </div>
+        <div class="curtain-gantt"></div>
+    </div>
+    <div id="menu-graph">
+        <canvas id="std-deviation-canvas"></canvas>
+        <canvas id="mean-canvas"></canvas>
+        <canvas id="best-fitness-canvas"></canvas>
+    </div>
+    <div id="menu-kpi">
+        <div>
+            <div class="left">KPI</div>
+            <div class="right">Value</div>
+        </div>
+        <table id="kpi-table">
+            <tbody></tbody>
+        </table>
+    </div>
+    <div id="menu-report">
+        <h1>Reports</h1>
+
+        <div class="report-section" title="Assignments based on optimizer input">
+            <h2>Assignment Input</h2>
+            <ul>
+                <li>
+                    <a href="#" data-report-type="assignment_input" data-format="json">JSON</a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="report-section" title="Assignments based on user input">
+            <h2>Assignment User Input</h2>
+            <ul>
+                <li>
+                    <a href="#" data-report-type="assignment_user_input" data-format="json">JSON</a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="report-section" title="Simple output from optimizer">
+            <h2>Output</h2>
+            <ul>
+                <li>
+                    <a href="#" data-report-type="output" data-format="json">JSON</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="info" style="display: none;">
+        <h1 id="output">Output:</h1>
+        <h1 id="generation">Generation:</h1>
+        <div class=flex>
+            <h1 id="solution">Solution:</h1>
+            <h1 id="progress" style="display: none;"></h1>
+        </div>
+        <h1 id="cost">Cost:</h1>
+        <h1 id="unassigned">Unassigned:</h1>
+        <div class="flex">
+            <button id="menu-button" onclick="toggleMenu()">Menu</button>
+        </div>
+    </div>
+
+    <div id="aircraft-view">
+        <div id="aircraft-column">
+            <!-- Aircraft elements will be dynamically inserted here -->
+        </div>
+        <div id="gantt">
+            <div id="time-ruler">
+                <!-- Tick marks and labels will be dynamically inserted here -->
+            </div>
+            <div class="chart">
+                <!-- Activity elements will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="menu" class="active">
+        <div class="toolbar">
+            <input id="select-animation" type="checkbox" checked="true">
+            <label for="select-animation" title="Use animation between generations.">
+                Animation
+            </label>
+            <input id="select-live" type="checkbox" checked="true">
+            <label for="select-live" title="Continuously checking if new generations have been generated in the output.">
+                Live
+            </label>
+            <div id="circle" title="Shows if running or in live mode"></div>
+        </div>
+        <div class="toolbar">
+            <label for="animation-duration">Duration</label>
+            <input id="animation-duration" type="range" min="0.1" max="5" value="1.5" step="0.1" class="flex-grow">
+            <div id="animation-duration-value">1.5s</div>
+        </div>
+        <div class="toolbar">
+            <label for="animation-interval">Interval</label>
+            <input id="animation-interval" type="range" min="0.2" max="10" value="3" step="0.1" class="flex-grow">
+            <div id="animation-interval-value">3s</div>
+        </div>
+        <div class="toolbar">
+            <input id="select-all" type="checkbox" value="all" checked="true">
+            <label for="select-all">All</label>
+            <button id="run-button" class="btn">Run</button>
+        </div>
+        <div class="toolbar">
+            <input id="input-sort" type="text" placeholder="Sort..."></input>
+            <button id="sort-button" class="btn">Sort</button>
+        </div>
+        <div class="flex-column">
+            <label for="select-opt-scenario">Scenarios:</label>
+            <select id="select-opt-scenario" name="opt-scenario"></select>
+        </div>
+        <div class="toolbar">
+            <a id="compare-link" href="#">
+                <div class="icon-container">
+                    {% include "icons/compare_arrows.svg" with title="Compare" alt="Compare" %}
+                </div>
+            </a>
+            <button id="clear-marks-button" class="btn">Clear marks</button>
+        </div>
+        <div class="solutions-container">
+            <div class="toolbar center">
+                <div class="inline-flex background-color-secondary padding-5 gap-5 border-radius" title="Shows the graph, KPIs and report of the selected output.">
+                <div id="graph-icon" title="Shows the graph of the selected output."></div>
+                <div id="kpis-icon" title="Shows the KPIs of the selected output."></div>
+                <div id="report-icon" title="Shows the report menu of the selected output."></div>
+                </div>
+            </div>
+            <fieldset id="generations-fieldset">
+                <legend>Solutions</legend>
+            </fieldset>
+        </div>
+    </div>
+    <div id="finder">
+        <input type="text" id="finder-input" placeholder="Find..." />
+    </div>
+</body>
+<script src="/files/visualization.js"></script>
+</html>

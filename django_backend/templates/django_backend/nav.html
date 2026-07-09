@@ -1,0 +1,103 @@
+{% load static %}
+<nav>
+  <div class="container">
+    {% if user.is_authenticated %}
+      <span>Hello, {{ user.username }}</span>
+      <form id="logout-form" action="{% url 'users-web:logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" title="Logout"><div class="icon-container">{% include "icons/logout.svg" with title="Logout" alt="Logout" %}</div></button>
+      </form>
+      <div>
+        <a href="{% url 'dashboard:home' %}" title="Dashboard">
+          <div class="icon-container">
+            {% include "icons/dashboard.svg" with title="Dashboard" alt="Dashboard" %}
+          </div>
+        </a>
+      </div>
+      <div>
+        <a href="{% url 'viz:home' %}" title="Visualizer"><div class="icon-container">{% include "icons/travel.svg" with title="Visualizer" alt="Visualizer" %}</div></a>
+      </div>
+      <div>
+        <a id="opt-link" href="{% url 'opt:home' %}" title="Opt"><div class="icon-container">{% include "icons/build_circle.svg" with title="Opt" alt="Opt" %}</div></a>
+      </div>
+      <div>
+        <a id="params-link" href="{% url 'params:list' %}" title="Params"><div class="icon-container">{% include "icons/display_settings.svg" with title="Params" alt="Params" %}</div></a>
+      </div>
+      {% if user.is_superuser %}
+        <div>
+          <a href="{% url 'admin:index' %}" title="Admin"><div class="icon-container">{% include "icons/manage_accounts.svg" with title="Admin" alt="Admin" %}</div></a>
+        </div>
+      {% endif %}
+    {% else %}
+      <a href="{% url 'users-web:login' %}" title="Login">
+        <div class="icon-container">
+          {% include "icons/login.svg" with title="Login" alt="Login" %}
+        </div>
+        Login
+      </a>
+    {% endif %}
+  </div>
+</nav>
+<style>
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-direction: row;
+  position: fixed;
+  top: 10px;
+  left: 50vw;
+  transform: translateX(-50%);
+  transition: top 0.3s ease-in-out;
+  z-index: 6;
+}
+nav * {
+  color: var(--color-text-light-primary);
+}
+nav .container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-direction: row;
+  background-color: var(--color-background-secondary);
+  border-radius: 5px;
+  padding: 5px;
+  color: var(--color-text-light-primary);
+  border: 1px solid var(--color-border);
+}
+nav .container * {
+  padding: 0;
+  display: inline-flex;
+  margin: 0;
+  font-size: var(--font-size-large);
+  border: none;
+  background: none;
+}
+</style>
+
+<script>
+document.addEventListener("mousemove", (event) => {
+    const threshold = 100;
+    const nav = document.querySelector("nav");
+    if (event.clientY < threshold) {
+        nav.style.top = "10px";
+    } else {
+        nav.style.top = "-60px";
+    }
+})
+document.addEventListener("DOMContentLoaded", () => {
+  const optId = localStorage.getItem("prevOptId");
+  if (optId) {
+    const link = document.getElementById("opt-link");
+    link.href = `/opt/${optId}/`;  // client-side rewrite
+    console.log("Rewrote opt link to", link.href);
+  }
+  const paramId = localStorage.getItem("prevParamId");
+  if (paramId) {
+    const link = document.getElementById("params-link");
+    link.href = `/params/${paramId}/`;  // client-side rewrite
+  }
+});
+</script>

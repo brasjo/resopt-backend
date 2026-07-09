@@ -1,0 +1,32 @@
+<div id="flight-{{ flight.id }}"
+    class="activity flight {% if flight.multileg_id %}multileg{% endif %}"
+    data-activity-type="flight"
+    {% if flight. %}
+    data-next-sobt="{{ flight.sobt.isoformat }}"
+    {% endif %}
+    data-next-sibt="{{ flight.sibt.isoformat }}"
+    data-next-activity-id="{{ flight.next_id }}"
+    data-prev-activity-id="{{ flight.prev_id }}"
+    data-prev-sobt="{{ flight.prev_sobt }}"
+    data-prev-sibt="{{ flight.prev_sibt }}"
+    {% if flight.service_type %}
+    data-service-type="{{ flight.service_type }}"
+    {% endif %}
+    data-seqnum="{{ flight.seqnum }}"
+    {% if flight.multileg_id %}
+    data-multilegId="{{ flight.multileg_id }}"
+    {% endif %}>
+
+    <div class="left">
+        <div>{{ flight.adep }}</div>
+        <div>{{ flight.sobt|date:"H:i" }}</div>
+    </div>
+    <div class="center">
+        <div>{{ flight.id }}-{{ flight.fl_num }}</div>
+        <div>{{ flight.planned_actype }}</div>
+    </div>
+    <div class="right">
+        <div>{{ flight.ades }}</div>
+        <div>{{ flight.sibt|date:"H:i" }}</div>
+    </div>
+</div>

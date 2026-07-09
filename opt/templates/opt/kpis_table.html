@@ -1,0 +1,70 @@
+{% load static %}
+<style>
+.kpis-table {
+    min-width: 600px;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.95rem;
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.kpis-table thead {
+    background-color: #f4f6f9;
+    text-transform: uppercase;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+}
+
+.kpis-table th,
+.kpis-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.kpis-table th {
+    text-align: center;
+    color: var(--color-text-dark-primary);
+}
+
+.kpis-table td {
+    text-align: right;
+    color: var(--color-text-dark-secondary);
+}
+
+.kpis-table td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+.kpis-table tbody tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.kpis-table tbody tr:hover {
+    background-color: #f1f5f9;
+}
+</style>
+
+<table class="kpis-table" id="kpis-table={{ table_id }}">
+    <thead>
+        <tr>
+            <th>KPI</th>
+            {% for output_file_name in output_file_names %}
+            <th>{{ output_file_name }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for kpis_row in kpis_rows %}
+        <tr>
+            {% for value in kpis_row %}
+            <td>{{ value }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="{% static 'favicon.webp' %}" type="image/webp">
+    {% block meta %}
+    {% endblock %}
+    <title>{% block title %}My App{% endblock %}</title>
+    {% block styles %}
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+    {% endblock %}
+</head>
+<body>
+    {% include 'django_backend/nav.html' %}
+    {% block nav_links %}{% endblock %}
+    {% if messages %}
+    <ul>
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        {% now "Y" as current_year %}
+        <small>&copy; {{ current_year }} ResOpt</small>
+    </footer>
+
+    {% csrf_token %}
+    <script>
+        const csrftoken = '{{ csrf_token }}';
+        window.DJANGO = {
+          optRunsUrl: "{% url 'opt-api-v1:runs-list' %}",
+          csrfToken: "{{ csrf_token }}",
+          username: "{{ request.user.username|escapejs }}",
+          uploadUrl: "{% url 'opt:upload-file' %}",
+          maxUploadSize: {{ MAX_UPLOAD_SIZE }},
+        };
+        console.log("Django settings loaded:", window.DJANGO);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

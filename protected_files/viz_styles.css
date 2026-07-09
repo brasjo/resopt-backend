@@ -1,0 +1,817 @@
+:root {
+    --activity-resource-spacing: 6px; /* Must be devisible by 2 */
+    --default-resource-height: 40px;
+
+    --menu-width: 310px;
+    --menu-kpi-width: 400px;
+
+    --default-day-spacing: 350px;
+    --gantt-width: 1000px;
+    --aircraft-width: 200px;
+    --activity-height: 50px;
+    --margin-top: 50px;
+    --time-ruler-height: 50px;
+
+    --flight-color: lightgreen;
+    --service-type-F-color: var(--flight-color);
+    --service-type-X-color: lightpink;
+    --service-type-A-color: steelblue;
+    --service-type-Z-color: lightblue;
+    --service-type-E-color: var(--service-type-Z-color);
+    --service-type-H-color: tomato;
+
+    --maintenance-color: yellow;
+    --animation-duration: 1.5s;
+}
+* {
+    box-sizing: border-box;
+    font-size: var(--font-size-small);
+    color: var(--color-text-light-primary);
+}
+h1 {
+    font-size: var(--font-size-large);
+    margin: 0;
+    padding: 0;
+}
+h2 {
+    font-size: var(--font-size-medium);
+    margin: 0;
+    padding: 0;
+}
+body {
+    margin: 0;
+    padding: 0;
+}
+.curtain {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: var(--time-ruler-height);
+    z-index: 3;
+    display: flex;
+}
+.curtain-aircraft {
+    height: 100%;
+    width: var(--aircraft-width);
+    background-color: var(--color-background-secondary);
+}
+.solutions-container {
+    padding: 5px;
+    background-color: var(--color-background-primary);
+    box-shadow: var(--color-shadow) 0px 4px 10px;
+    border-radius: var(--radius);
+}
+.curtain-aircraft img {
+    height: 100%;
+    width: 100%;
+}
+.curtain-gantt {
+    height: 100%;
+    background-color: transparent;
+    width: calc(100vw - var(--aircraft-width));
+}
+.flex {
+    display: flex;
+    gap: 5px;
+}
+.flex * {
+    align-items: center;
+}
+.flex-grow {
+    flex-grow: 1;
+}
+.toolbar {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+.toolbar.center {
+    justify-content: center;
+}
+#animation-interval,
+#animation-duration {
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+}
+#animation-duration::-webkit-slider-runnable-track,
+#animation-interval::-webkit-slider-runnable-track {
+    background: var(--color-primary);
+    height: 6px;
+    border-radius: var(--radius);
+}
+#animation-duration::-webkit-slider-thumb,
+#animation-interval::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 13px;
+    width: 13px;
+    background: var(--color-white);
+    border-radius: 50%;
+    margin-top: -4px; /* centers thumb */
+    cursor: pointer;
+}
+#animation-duration-value,
+#animation-interval-value {
+    width: 30px;
+    text-align: right;
+}
+#menu {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: var(--menu-width);
+    height: 100vh;
+    top: 0;
+    left: calc(100vw + 10px);
+    background-color: var(--color-background-secondary);
+    box-shadow: 0 0 10px var(--color-shadow);
+    padding: 10px;
+    z-index: 5;
+    transition: left 0.5s;
+    overflow-y: auto;
+}
+#menu.active {
+    transition: left 0.5s;
+    left: calc(100vw - var(--menu-width));
+}
+#menu-graph {
+    top: 40px;
+    position: fixed;
+    width: calc(100vw - var(--menu-width) - 20px);
+    max-width: 600px;
+    height: calc(100vh - 20px);
+    padding: 10px;
+    background-color: var(--color-background-primary);
+    z-index: 4;
+    right: calc(var(--menu-width) + 10px);
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: transparent;
+    visibility: hidden;
+    transition: opacity 1s ease-in-out, visibility 0s linear 1s;
+}
+#menu-graph.active {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.5s ease-in-out;
+}
+#menu-graph.show {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.5s ease-in-out;
+}
+#info #menu-graph-button {
+    text-align: center;
+    padding: 5px;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+}
+#info #menu-button-graph {
+    padding: 5px;
+}
+#info #menu-button {
+    padding: 5px;
+}
+#run-button {
+    background-color: gray;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: not-allowed;
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    font-size: var(--font-size-large);
+}
+#run-button.active {
+    background-color: var(--color-primary);
+    cursor: pointer;
+}
+#run-button.stop {
+    background-color: lightcoral;
+}
+#generations-fieldset {
+    max-height: 340px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px;
+}
+fieldset div:hover {
+    background-color: lightblue;
+}
+fieldset div:hover * {
+    color: var(--color-text-dark-primary);
+}
+fieldset div.active {
+    background-color: #d4edda; /* soft green */
+}
+fieldset div.active * {
+    color: var(--color-text-dark-primary);
+}
+fieldset div.selected {
+    outline: 2px solid var(--color-text-light-primary);
+    outline-offset: 1px;
+}
+
+fieldset div.active.selected {
+    background-color: #d4edda; /* soft green */
+    border: 2px solid var(--color-text-light-primary);
+}
+fieldset div.active.selected * {
+    color: var(--color-text-dark-primary);
+}
+fieldset div.active.selected:hover {
+    background-color: lightblue;
+    color: var(--color-text-dark-primary);
+}
+.solution-menu {
+    display: flex;
+    gap: 5px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background-color: var(--color-background-secondary);
+    border: 2px solid var(--color-background-secondary);
+    padding: 5px;
+    cursor: pointer;
+}
+label {
+    font-size: var(--font-size-large);
+    font-weight: bold;
+    cursor: pointer;
+}
+label[for="animation-duration"],
+label[for="animation-interval"] {
+    cursor: default;
+}
+label * {
+    cursor: pointer;
+}
+form > * {
+    padding: 5px;
+    font-size: var(--font-size-large);
+}
+#info {
+    background-color: var(--color-background-secondary);
+    border: 1px solid black;
+    box-shadow: 0 0 10px var(--color-shadow);
+    position: fixed;
+    top: calc(100vh - 184px);
+    left: calc(100vw - 284px);
+    z-index: 6;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+#info * {
+    font-size: var(--font-size-large);
+    padding: 0 0 5px 0;
+    margin: 0;
+}
+#progress {
+    margin-left: 10px;
+}
+#aircraft-view {
+    display: flex;
+    flex-direction: row;
+}
+#aircraft-view * {
+    font-family: "Inter", monospace;
+}
+#aircraft-column {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    background-color: var(--color-background-primary);
+    width: var(--aircraft-width);
+    height: 100vh;
+    overflow-y: auto;
+    position: fixed;
+    border-right: 2px solid black;
+    padding-top:  var(--time-ruler-height);
+    z-index: 2;
+}
+#aircraft-column::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+.aircraft {
+    height: var(--activity-height);
+    background-color: var(--color-background-secondary);
+    color: var(--color-text-light-primary);
+    border-bottom: 2px solid var(--color-border);
+    text-align: center;
+    overflow-y: hidden;
+    font-size: var(--font-size-large);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.aircraft * {
+    font-size: var(--font-size-large);
+}
+.chart {
+    position: relative;
+}
+.chart .flights:first-child {
+    border-top: 1px solid black;
+}
+.flight {
+    background-color: var(--flight-color);
+}
+.flight[data-service-type="F"] {
+    background-color: var(--service-type-F-color);
+}
+.flight[data-service-type="X"] {
+    background-color: var(--service-type-X-color);
+}
+.flight[data-service-type="H"] {
+    background-color: var(--service-type-H-color);
+}
+.flight[data-service-type="A"] {
+    background-color: var(--service-type-A-color);
+}
+.flight[data-service-type="E"] {
+    background-color: var(--service-type-E-color);
+}
+.flight[data-service-type="Z"] {
+    background-color: var(--service-type-Z-color);
+}
+.flight.gray {
+    background-color: lightgray;
+    border-color: #00000033;
+}
+#gantt {
+    margin-left: var(--aircraft-width);
+    width: 100vw;
+    height: 100vh;
+    display: inline-block;
+    overflow-x: auto;
+    overscroll-behavior: none;
+    background-color: var(--color-background-primary);
+}
+#gantt::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+#time-ruler {
+    height: var(--time-ruler-height);
+    top: 0;
+    position: sticky;
+    border-top: 2px solid black;
+    border-bottom: 1px solid black;
+    z-index: 4;
+    background-color: var(--color-background-secondary);
+}
+
+/* Style for the ticks (small lines on the ruler) */
+.tick {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    background-color: var(--color-text-light-primary);
+    color: var(--color-text-light-primary);
+    z-index: 1;
+}
+
+/* Long ticks for day markers */
+.tick.large {
+    height: 100%;
+}
+/* Add dates below large ticks using ::after */
+
+.tick.large::after {
+    content: attr(data-date);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 30px;  /* Position below the large tick */
+    left: 4px;  /* Adjust to center under the tick */
+    font-size: 14px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+/* Small ticks for 6or24-hour markers */
+.tick.small {
+    height: 14px;
+}
+
+.tick.small::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 14px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+/* Small ticks for 30-min markers */
+.tick.smaller {
+    height: 10px;
+}
+
+.tick.smaller::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 10px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+
+/* Small ticks for 15/45-min markers */
+.tick.smallest {
+    height: 8px;
+}
+
+.tick.smallest::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 8px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+.vertical-line {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    background-color: var(--color-text-light-secondary);
+    pointer-events: none; /* So it doesn't interfere with user interactions */
+}
+.activity.maintenance {
+    cursor: pointer;
+    z-index: 1;
+    overflow: hidden;
+    position: absolute;
+    height: var(--activity-height);
+    background-color: var(--maintenance-color);
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 2px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: center;
+    align-items: center;
+    text-wrap: nowrap;
+}
+.activity.maintenance.gray {
+    background-color: lightgray;
+    border-color: #00000033;
+}
+/* Rectangle below the ruler that scales */
+div.activity {
+    color: var(--color-text-dark-primary);
+    cursor: pointer;
+    z-index: 2;
+    position: absolute;
+    height: var(--activity-height);
+    border: 1px solid green;
+    overflow: hidden;
+    border-radius: 3px;
+    transform: translateY(0);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    padding: 2px;
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+    align-items: center;
+    text-wrap: nowrap;
+}
+.activity > * {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.activity * {
+    color: var(--color-text-dark-primary);
+}
+.floating-shadow {
+    z-index: 3;
+    transform: translateY(-2px);
+    box-shadow: -10px 20px 30px rgba(0, 0, 0, 0.2); /* adjust values as needed */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.station-label {
+    position: absolute;
+    text-wrap: nowrap;
+    transform: translate(-50%, -50%);
+    color: var(--color-text-light-primary);
+    padding: 4px;
+    background-color: var(--color-background-secondary);
+}
+.left {
+    text-align: left;
+}
+.right {
+    text-align: right;
+}
+.horizontal-line {
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    background-color: lightgray;
+}
+/* Tooltip container */
+.tooltip-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Tooltip text */
+.tooltip-wrapper .tooltip {
+    font-size: var(--font-size-medium);
+    visibility: hidden;
+    width: 160px;
+    background-color: var(--color-background-secondary);
+    color: var(--color-text-light-primary);
+    text-align: center;
+    border-radius: 5px;
+    padding: 5px;
+    position: absolute;
+    z-index: 3;
+    transform: translate(-5%, 28%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.tooltip.visible {
+    visibility: visible;
+    opacity: 1;
+}
+#circle {
+    width: 16px;
+    height: 16px;
+    position: relative;
+    margin: auto 0 auto 0;
+    border-radius: 50%;
+    border-width: 2px;
+    background-color: var(--color-background-secondary);
+    transition: background-color 0.5s ease;
+    border: var(--color-border) solid 1px;
+}
+#finder {
+    position: fixed;
+    top: calc(100vh - 70px);
+    left: calc(100vw - 520px);
+    z-index: 4;
+    background-color: darkslategray;
+    width: fit-content;
+    height: fit-content;
+    display: none;
+}
+#finder.show {
+    display: flex;
+}
+#finder-input {
+    font-size: var(--font-size-large);
+    width: 200px;
+    height: 30px;
+}
+.multileg {
+    background-color: lightblue;
+    border-color: darkblue;
+}
+.gray {
+    background-color: lightgray;
+    border-color:#00000033;
+}
+canvas {
+    height: 230px !important;
+    width: 100% !important;
+    background-color: var(--color-background-primary);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 10px var(--color-shadow); /* Soft shadow */
+    padding: 10px;
+}
+
+/* Optional: Add a glowing effect on hover */
+canvas:hover {
+    border-color: rgba(0, 123, 255, 0.5);
+    box-shadow: 0 0 15px rgba(0, 123, 255, 0.3);
+    transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+#graph-icon {
+    background-image: url(/files/graph_icon.png);
+    background-size: cover;  /* Ensures the image covers the entire element */
+    background-position: center;  /* Centers the image */
+    background-repeat: no-repeat;  /* Prevents repeating */
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+#kpis-icon {
+    background-image: url(/files/kpis_icon.png);
+    background-size: cover;  /* Ensures the image covers the entire element */
+    background-position: center;  /* Centers the image */
+    background-repeat: no-repeat;  /* Prevents repeating */
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+#menu-kpi {
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 0 10px var(--color-shadow);
+    position: fixed;
+    top: 10px;
+    right: calc(var(--menu-width) + 10px);
+    z-index: 5;
+    padding: 10px;
+    border-radius: var(--radius);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    visibility: hidden;
+    width: var(--menu-kpi-width);
+}
+#menu-kpi > div {
+    width: 100%;
+    display: flex;
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-primary);
+}
+#menu-kpi > div * {
+    font-size: var(--font-size-large);
+    font-weight: bold;
+    color: var(--color-text-light-primary);
+    flex-grow: 1;
+}
+#menu-kpi.show {
+    visibility: visible;
+}
+
+#menu-report {
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 0 10px var(--color-shadow);
+    position: fixed;
+    top: 30px;
+    right: calc(var(--menu-width) + 10px);
+    z-index: 5;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 5px;
+    visibility: hidden;
+    width: 340px;
+}
+#menu-report * {
+    color: var(--color-text-light-primary);
+}
+#menu-report.show {
+    visibility: visible;
+}
+#menu-report h1 {
+    font-size: var(--font-size-large);
+    margin: 10px 0 6px;
+}
+.report-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.report-section ul {
+    display: flex;
+    flex-direction: row;
+    gap: 2px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#menu-report a {
+    display: inline-block;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: var(--color-background-primary);
+}
+
+
+#kpi-table {
+    border-collapse: collapse;
+    border-radius: 8px;
+    table-layout: fixed;
+}
+#kpi-table * {
+    color: var(--color-text-light-primary);
+}
+
+#kpi-table thead {
+    background-color: var(--color-primary);
+    font-weight: bold;
+    font-size: var(--font-size-medium);
+    color: var(--color-text-light-primary);
+    height: 30px;
+}
+
+#kpi-table td {
+    font-size: var(--font-size-medium);
+}
+
+#kpi-table td.number {
+    text-align: right;
+}
+
+#kpi-table tbody tr:nth-child(even) {
+    background-color: var(--color-background-primary);
+}
+#kpi-table tbody td:nth-child(2) {
+    width: 1%;
+    white-space: nowrap;
+    text-align: center;
+}
+#kpi-table tbody td:first-child {
+    width: 50%;
+    text-align: right;
+    padding: 12px;
+}
+#kpi-table tbody td:last-child {
+    width: 50%;
+    text-align: left;
+    padding: 12px;
+}
+
+#kpi-table tbody tr:hover {
+    background-color: var(--color-text-dark-primary);
+    transition: 0.3s;
+}
+
+#kpi-table th {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: var(--font-size-medium);
+}
+
+@media (max-width: 600px) {
+    #kpi-table th, #kpi-table td {
+        padding: 8px;
+    }
+}
+.rotation {
+    background-color: var(--color-text-light-primary);
+    border: 1px solid #0056b3;
+    border-radius: 5px;
+    position: absolute;
+    transition: top 0.5s ease;
+    z-index: 1;
+}
+.rotation:hover {
+    cursor: pointer;
+}
+.animate {
+    transition: left var(--animation-duration) cubic-bezier(0.25, 0.46, 0.45, 0.94), top var(--animation-duration) cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.rotation.gray {
+    background-color: lightgray;
+    border-color: #00000033;
+}
+#select-opt-scenario {
+    width: 100%;
+    font-size: var(--font-size-medium);
+    padding: 5px;
+}
+#select-opt-scenario option {
+    font-size: var(--font-size-medium);
+}
+#input-sort {
+    font-size: var(--font-size-large);
+    padding: 5px;
+    flex: 1;
+    min-width: 0;
+}
+a.disabled {
+    pointer-events: none;   /* prevents clicking */
+    opacity: 0.5;          /* makes it look grayed out */
+    color: gray;           /* dimmed text */
+    text-decoration: none; /* optional: remove underline */
+    cursor: not-allowed;   /* "blocked" cursor */
+}
+#report-icon {
+    cursor: pointer;
+    background-image: url(/files/report_icon.png);
+    background-size: cover;  /* Ensures the image covers the entire element */
+    background-position: center;  /* Centers the image */
+    background-repeat: no-repeat;  /* Prevents repeating */
+    width: 20px;
+    height: 20px;
+}

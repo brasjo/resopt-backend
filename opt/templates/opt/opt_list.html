@@ -1,0 +1,38 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+{% block title %}Opt{% endblock %}
+{% block meta %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+{% endblock %}
+{% block styles %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'opt/css/styles.css' %}">
+{% endblock %}
+{% block nav_links %}
+{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Optimization</h1>
+    <div class="button-group">
+        <form id="create-opt-form" action="{% url 'opt:home' %}" method="post">
+            {% csrf_token %}
+            <button id="create-new" type="submit">
+                <img src="{% static 'icons/add.svg' %}" alt="Create New" class="icon">
+                Create New
+            </button>
+        </form>
+    </div>
+    <div class="flex-col">
+    {% for opt_run in opt_runs %}
+        <a href="{% url 'opt:detail' run_id=opt_run.id %}">{{ opt_run.created_at|date:"Y-m-d H:i" }} - {{ opt_run.name }}</a>
+    {% endfor %}
+    </div>
+</div>
+    <h2>Parameter Sets</h2>
+    <a href="{% url 'params:list' %}">Manage Parameter Sets</a>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'opt/js/opt.js' %}"></script>
+<script src="{% static 'params/js/formset_table.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% load kpis_tags %}
+{% load static %}
+
+<!-- ================= RULE FORMSET ================= -->
+<div id="rule-formset-container">
+  {{ rule_formset.management_form }}
+  {% for rule_form in rule_formset.forms %}
+    {% with relational_fs=relational_condition_formsets|index:forloop.counter0 activity_fs=activity_condition_formsets|index:forloop.counter0 resource_fs=resource_condition_formsets|index:forloop.counter0 %}
+    <fieldset class="rule-form" data-rule-index="{{ forloop.counter0 }}">
+      <h2>Rule {{ forloop.counter }}</h2>
+
+      <button type="button" class="btn btn-remove-rule btn-remove">
+        ❌ Remove Rule
+      </button>
+
+      {% include "opt/RuleForm.html" with form=rule_form index=forloop.counter0 %}
+
+      <h3>Rule {{ forloop.counter }} Conditions</h3>
+
+      <!-- RELATIONAL -->
+      <div class="relational-condition-formset condition-formset"
+          data-condition-prefix="{{ relational_fs.prefix }}">
+
+        {{ relational_fs.management_form }}
+
+        {% for condition_form in relational_fs.forms %}
+          {% if condition_form not in relational_fs.deleted_forms %}
+          {% include "opt/RelationalCondition.html" with form=condition_form index=forloop.counter0 %}
+          {% endif %}
+        {% endfor %}
+
+        <template class="relational-condition-empty-template">
+          {% include "opt/RelationalCondition.html" with form=relational_condition_formset_prototype.empty_form %}
+        </template>
+      </div>
+
+      <!-- ACTIVITY -->
+      <div class="activity-condition-formset condition-formset"
+          data-condition-prefix="{{ activity_fs.prefix }}">
+
+        {{ activity_fs.management_form }}
+
+        {% for condition_form in activity_fs.forms %}
+          {% if condition_form not in activity_fs.deleted_forms %}
+          {% include "opt/ActivityCondition.html" with form=condition_form index=forloop.counter0 %}
+          {% endif %}
+        {% endfor %}
+
+        <template class="activity-condition-empty-template">
+          {% include "opt/ActivityCondition.html" with form=activity_condition_formset_prototype.empty_form %}
+        </template>
+      </div>
+
+      <!-- RESOURCE -->
+      <div class="resource-condition-formset condition-formset"
+          data-condition-prefix="{{ resource_fs.prefix }}">
+
+        {{ resource_fs.management_form }}
+
+        {% for condition_form in resource_fs.forms %}
+          {% if condition_form not in resource_fs.deleted_forms %}
+          {% include "opt/ResourceCondition.html" with form=condition_form index=forloop.counter0 %}
+          {% endif %}
+        {% endfor %}
+
+        <template class="resource-condition-empty-template">
+          {% include "opt/ResourceCondition.html" with form=resource_condition_formset_prototype.empty_form index=forloop.counter0 %}
+        </template>
+      </div>
+      <div class="add-condition-buttons">
+        <button type="button" class="btn btn-add-relational-condition">
+          <div class="icon-container color-primary">
+            {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+          </div>
+          Add Relational Condition
+        </button>
+        <button type="button" class="btn btn-add-activity-condition">
+          <div class="icon-container color-primary">
+            {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+          </div>
+          Add Activity Condition
+        </button>
+        <button type="button" class="btn btn-add-resource-condition">
+          <div class="icon-container color-primary">
+            {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+          </div>
+          Add Resource Condition
+        </button>
+      </div>
+
+    </fieldset>
+    {% endwith %}
+  {% endfor %}
+</div>
+
+<button type="button" id="btn-add-rule" class="btn">
+  <div class="icon-container">
+  {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+  </div>
+  Add Rule
+</button>
+
+<!-- ================================================= -->
+<!-- =============== RULE TEMPLATE =================== -->
+<!-- ================================================= -->
+
+<template id="empty-rule-form-template">
+  <fieldset class="rule-form" data-rule-index="__prefix__">
+
+    {% include "opt/RuleForm.html" with form=rule_formset_prototype.empty_form %}
+
+    <div>
+      <button type="button" class="btn btn-add-relational-condition">
+        <span class="plus">+</span> Add Relational Condition
+      </button>
+      <button type="button" class="btn btn-add-activity-condition">
+        <span class="plus">+</span> Add Activity Condition
+      </button>
+      <button type="button" class="btn btn-add-resource-condition">
+        <span class="plus">+</span> Add Resource Condition
+      </button>
+    </div>
+
+  </fieldset>
+</template>
+
+<!-- ================================================= -->
+<!-- ===== EMPTY CONDITION FORMSET PROTOTYPE ========= -->
+<!-- ================================================= -->
+
+<template id="empty-relational-condition-formset-template">
+  <div class="relational-condition-formset condition-formset"
+       data-condition-prefix="rules-__prefix__-relational-conditions">
+
+    <input type="hidden"
+           name="rules-__prefix__-relational-conditions-TOTAL_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-relational-conditions-INITIAL_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-relational-conditions-MIN_NUM_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-relational-conditions-MAX_NUM_FORMS"
+           value="1000">
+
+    <template class="relational-condition-empty-template">
+      <div class="condition-form">
+        {{ relational_condition_formset_prototype.empty_form.as_p }}
+        <button type="button" class="btn btn-remove-condition">
+          ❌ Remove
+        </button>
+      </div>
+    </template>
+
+  </div>
+</template>
+<template id="empty-activity-condition-formset-template">
+  <div class="activity-condition-formset condition-formset"
+       data-condition-prefix="rules-__prefix__-activity-conditions">
+
+    <input type="hidden"
+           name="rules-__prefix__-activity-conditions-TOTAL_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-activity-conditions-INITIAL_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-activity-conditions-MIN_NUM_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-activity-conditions-MAX_NUM_FORMS"
+           value="1000">
+
+    <template class="activity-condition-empty-template">
+      <div class="condition-form">
+        {{ activity_condition_formset_prototype.empty_form.as_p }}
+        <button type="button" class="btn btn-remove-condition">
+          ❌ Remove
+        </button>
+      </div>
+    </template>
+
+  </div>
+</template>
+<template id="empty-resource-condition-formset-template">
+  <div class="resource-condition-formset condition-formset"
+       data-condition-prefix="rules-__prefix__-resource-conditions">
+
+    <input type="hidden"
+           name="rules-__prefix__-resource-conditions-TOTAL_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-resource-conditions-INITIAL_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-resource-conditions-MIN_NUM_FORMS"
+           value="0">
+
+    <input type="hidden"
+           name="rules-__prefix__-resource-conditions-MAX_NUM_FORMS"
+           value="1000">
+
+    <template class="resource-condition-empty-template">
+      <div class="condition-form">
+        {{ resource_condition_formset_prototype.empty_form.as_p }}
+        <button type="button" class="btn btn-remove-condition">
+          ❌ Remove
+        </button>
+      </div>
+    </template>
+
+  </div>
+</template>

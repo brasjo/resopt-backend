@@ -1,0 +1,41 @@
+{% extends "django_backend/base.html" %}
+{% block title %}Parameter Sets{% endblock %}
+
+{% block content %}
+  <h1>Parameter Sets</h1>
+  <h2>Create New Parameter Set</h2>
+  <div class="flex-row align-items-center mb-3 justify-content-center gap-2 text-align-center">
+    <form id="create-form" class="flex-col" method="post" action="{% url 'params:create' %}">
+      {{ form.as_p }}
+      {% csrf_token %}
+      <button id="create-new" type="submit" class="btn">
+        <div class="icon-container">
+          {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+           Create new from:
+      </button>
+      <select id="create-select">
+      {% for ps in parameter_sets %}
+        <option value="{{ ps.pk }}">{{ ps.organization.name }} - {{ ps.name }}</option>
+      {% endfor %}
+      </select>
+    </form>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const createSelectElement = document.getElementById('create-select');
+  const formElement = document.getElementById('create-form');
+  formElement.addEventListener('submit', (event) => {
+    const selectedParamSetId = createSelectElement.value;
+    localStorage.setItem('selectedParamSetId', selectedParamSetId);
+    let input = formElement.querySelector('input[name="from_id"]');
+    if (!input) {
+      input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'from_id';
+      formElement.appendChild(input);
+    }
+    input.value = selectedParamSetId;
+  });
+</script>
+{% endblock %}

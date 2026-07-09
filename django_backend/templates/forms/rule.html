@@ -1,0 +1,144 @@
+<div class="rule-section">
+    <h2>Rule</h2>
+
+    <div class="rule-grid">
+        <div class="form-row">
+            {{ form.id.label_tag }}
+            {{ form.id }}
+            {{ form.id.errors }}
+        </div>
+
+        <div class="form-row">
+            {{ form.penalty.label_tag }}
+            {{ form.penalty }}
+            {{ form.penalty.errors }}
+        </div>
+
+        <div class="form-row rule-description">
+            {{ form.description.label_tag }}
+            {{ form.description }}
+            {{ form.description.errors }}
+        </div>
+
+        <div class="form-row">
+            {{ form.valid_from.label_tag }}
+            {{ form.valid_from }}
+            {{ form.valid_from.errors }}
+        </div>
+
+        <div class="form-row">
+            {{ form.valid_to.label_tag }}
+            {{ form.valid_to }}
+            {{ form.valid_to.errors }}
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<div class="rule-section">
+    <h2>Conditions</h2>
+
+    {{ condition_formset.management_form }}
+
+    <div class="conditions-list">
+        {% for condition_form in condition_formset %}
+            <div class="condition-item">
+                {% include "forms/condition.html" with form=condition_form %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
+<style>
+/* ========== Rule layout ========== */
+
+.rule-section {
+    margin-bottom: 2.5rem;
+}
+
+.rule-section h2 {
+    margin: 0 0 1.25rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+/* Grid for rule fields */
+.rule-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem 2rem;
+}
+
+/* Description spans full width */
+.rule-description {
+    grid-column: 1 / -1;
+}
+
+/* ========== Shared form rows ========== */
+
+.rule-form-row {
+    display: flex;
+    flex-direction: column;
+}
+
+.rule-form-row label {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    font-size: 0.9rem;
+}
+
+.rule-form-row input,
+.rule-form-row textarea,
+.rule-form-row select {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.95rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.rule-form-row textarea {
+    resize: vertical;
+}
+
+/* Focus state */
+.rule-form-row input:focus,
+.rule-form-row textarea:focus,
+.rule-form-row select:focus {
+    outline: none;
+    border-color: #4c6ef5;
+    box-shadow: 0 0 0 1px rgba(76, 110, 245, 0.2);
+}
+
+/* Errors */
+.errorlist {
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: #c92a2a;
+    font-size: 0.85rem;
+}
+
+/* ========== Conditions section ========== */
+
+.conditions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.condition-item {
+    padding: 1.25rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+/* Horizontal separator */
+.rule-section + hr {
+    margin: 2rem 0;
+    border: none;
+    border-top: 1px solid #e5e7eb;
+}
+
+</style>

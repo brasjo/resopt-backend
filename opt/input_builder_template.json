@@ -1,0 +1,10 @@
+{
+    "aircrafts": [],
+    "flights": [],
+    "maintenances": [],
+    "metadata": {
+        "period_start": null,
+        "period_end": null
+    },
+    "parameters": {}
+}

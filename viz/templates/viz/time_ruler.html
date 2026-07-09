@@ -1,0 +1,72 @@
+<div class="time-ruler" style="width: {{ total_width }}px;">
+    {% for tick in ticks %}
+        <div class="tick {{ tick.type }}" style="left: {{ tick.left }}px;">
+            <span class="label">{{ tick.label }}</span>
+        </div>
+    {% endfor %}
+</div>
+<style>
+.time-ruler {
+    height: var(--time-ruler-height);
+    top: 0;
+    position: sticky;
+    border-top: 2px solid black;
+    border-bottom: 1px solid black;
+    z-index: 3;
+    background-color: var(--color-background-primary);
+}
+.tick {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    background-color: black;
+}
+.tick.large {
+    height: 100%;
+}
+.tick.large::after {
+    content: attr(data-date);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 30px;  /* Position below the large tick */
+    left: 4px;  /* Adjust to center under the tick */
+    font-size: 14px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+.tick.small {
+    height: 14px;
+}
+.tick.small::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 14px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+.tick.smaller {
+    height: 10px;
+}
+.tick.smaller::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 10px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+.tick.smallest {
+    height: 8px;
+}
+.tick.smallest::after {
+    content: attr(data-time);  /* Insert the date from the data attribute */
+    position: absolute;
+    top: 13px;  /* Position below the large tick */
+    left: -7px;  /* Adjust to center under the tick */
+    font-size: 8px;
+    font-weight: bold;
+    text-wrap: nowrap;
+}
+</style>

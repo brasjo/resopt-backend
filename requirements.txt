@@ -1,0 +1,5 @@
+django==5.2
+djangorestframework==3.16.0
+boto3==1.40.*
+django-storages==1.14.6
+pydantic==2.12.*

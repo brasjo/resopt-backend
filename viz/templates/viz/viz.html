@@ -1,0 +1,94 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+
+{% block title %}Visualizer{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{% static 'base.css' %}">
+<link rel="stylesheet" href="{% static 'viz/styles.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="view-container">
+    <div class="curtain">
+        <div class="curtain-aircraft">
+            <img src="{% static 'viz/logo_text.png' %}" alt="Logo">
+        </div>
+        <div class="curtain-gantt"></div>
+    </div>
+    <div id="menu-graph">
+        <canvas id="std-deviation-canvas"></canvas>
+        <canvas id="mean-canvas"></canvas>
+        <canvas id="best-fitness-canvas"></canvas>
+    </div>
+    <div id="menu-kpi">
+        <table id="kpi-table">
+            <thead>
+                <th class="left">KPI</th>
+                <th class="right">Value</th>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <div id="info">
+        <h1 id="output">Output:</h1>
+        <h1 id="generation">Generation:</h1>
+        <div class=flex>
+            <h1 id="solution">Solution:</h1>
+            <h1 id="progress" style="display: none;"></h1>
+        </div>
+        <h1 id="cost">Cost:</h1>
+        <h1 id="unassigned">Unassigned:</h1>
+        <div class="flex">
+            <button id="menu-button" onclick="toggleMenu()">Menu</button>
+        </div>
+    </div>
+
+    <div id="aircraft-view">
+        <div id="aircraft-column">
+            <!-- Aircraft elements will be dynamically inserted here -->
+        </div>
+        <!-- Gantt chart will be dynamically inserted here -->
+    </div>
+
+    <div id="menu" class="active">
+        <div class="toolbar">
+            <div class="tooltip-wrapper">
+                <div class="tooltip">
+                    Show the graph of the selected output.
+                </div>
+                <div id="graph-icon" style="background-image: url('{% static "viz/graph_icon.png" %}');"></div>
+            </div>
+            <div class="tooltip-wrapper">
+                <div class="tooltip">
+                    Continuously checking if new generations have been generated
+                    in the output.
+                </div>
+                <form>
+                    <input id="select-live" type="checkbox" checked="true">
+                    <label for="select-live">Live</label>
+                </form>
+
+            </div>
+            <div id="circle"></div>
+        </div>
+        <div class="toolbar">
+            <label for="select-opt-run">Runs:</label>
+            <select id="select-opt-run"></select>
+        </div>
+        <form>
+            <fieldset id="solutions-fieldset">
+                <legend>Solutions</legend>
+            </fieldset>
+        </form>
+    </div>
+    <div id="finder">
+        <input type="text" id="finder-input" placeholder="Find..." />
+    </div>
+    <div id="graph-icon" data-icon-url="{% static 'viz/graph_icon.png' %}"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'viz/graph.js' %}"></script>
+<script src="{% static 'viz/visualization.js' %}"></script>
+{% endblock %}

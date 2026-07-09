@@ -1,0 +1,20 @@
+{% extends "django_backend/base.html" %}
+{% block title %}Solutions{% endblock %}
+
+{% block content %}
+  <h1>Solutions</h1>
+  <ul>
+    {% for output_file in output_files %}
+      <li>
+        <a href="{% url 'opt:solution-detail' opt_run.id output_file.id %}">
+          {{ output_file.run.id }} - {{ output_file.run.name }}
+        </a>
+        <a style="color: blue;" href="{{ output_file.file.url }}">
+            Download
+        </a>
+      </li>
+    {% empty %}
+      <li>No solutions available.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

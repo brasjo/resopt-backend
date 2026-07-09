@@ -1,0 +1,28 @@
+{
+    "use_min_turn_time_rule" : true,
+    "default_min_turn_time": "01:00",
+    "custom_min_turn_times": [
+        {
+            "param": "min_turn_time_320",
+            "time_delta": "00:30"
+        },
+        {
+            "param": "min_turn_time_321",
+            "time_delta": "00:40"
+        },
+        {
+            "param": "min_turn_time_ATR",
+            "time_delta": "00:15"
+        }
+    ],
+    "use_max_turn_time_rule" : true,
+    "max_turn_time" : "02:00",
+    "max_turn_time_penalty_per_minute" : 5,
+    "use_fuel_penalty": true,
+    "fuel_penalty_per_kg": 50,
+    "use_pax_penalty": true,
+    "pax_penalty_per_seat_difference": 75,
+    "allow_refleeting_with_penalty": true,
+    "reoptimize_solution": false,
+    "penalty_per_refleet": 10000
+}
