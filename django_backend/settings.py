@@ -21,9 +21,11 @@ load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.append(str(BASE_DIR / '..'))
-OUTPUT_DIR = (BASE_DIR / '..' / 'tmp' / 'output').resolve()
-SCENARIOS_DIR = (BASE_DIR / '..' / 'scenarios').resolve()
+# Legacy monorepo-era default (sibling repo layout); override via env once
+# backend/optimizer exchange data through S3 instead of a shared filesystem
+# (see resopt-optimizer's config.py S3_BUCKET / aws.py) — see CLAUDE.md.
+OUTPUT_DIR = Path(os.getenv('OPT_OUTPUT_DIR', BASE_DIR / '..' / 'tmp' / 'output')).resolve()
+SCENARIOS_DIR = Path(os.getenv('OPT_SCENARIOS_DIR', BASE_DIR / '..' / 'scenarios')).resolve()
 PROTECTED_FILES_ROOT = (BASE_DIR / 'protected_files').resolve()
 PROJECT_NAME = os.path.basename(BASE_DIR)
 print(f"Project name: {PROJECT_NAME}")
@@ -103,18 +105,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'viz.middleware.MaxUploadSizeMiddleware',
 ]
-# Add this after MIDDLEWARE:
-def simple_cors_middleware(get_response):
-    def middleware(request):
-        response = get_response(request)
-        response["Access-Control-Allow-Origin"] = "http://localhost:3000"
-        response["Access-Control-Allow-Credentials"] = "true"
-        response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken"
-        return response
-    return middleware
-
-MIDDLEWARE.insert(0, "django_backend.settings.simple_cors_middleware")
 
 ROOT_URLCONF = 'django_backend.urls'
 
@@ -122,7 +112,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            BASE_DIR / PROJECT_NAME / 'templates',
+            Path(__file__).resolve().parent / 'templates',
         ],
         'APP_DIRS': True,
         'OPTIONS': {

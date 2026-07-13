@@ -1,8 +1,14 @@
 {% extends "django_backend/base.html" %}
-{% load static %}
 {% block styles %}
-<link rel="stylesheet" href="{% static 'viz/styles.css' %}">
+<link rel="stylesheet" href="/files/gantt.css/">
 {% endblock %}
 {% block content %}
-{% include "viz/Gantt.html" %}
+{% include "viz/gantt_canvas.html" %}
+{% endblock %}
+{% block scripts %}
+<script src="/files/gantt-globals.js/"></script>
+<script src="/files/gantt-draw.js/"></script>
+<script src="/files/gantt-data.js/"></script>
+<script src="/files/gantt-playback.js/"></script>
+<script src="/files/gantt-interaction.js/"></script>
 {% endblock %}

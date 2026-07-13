@@ -9,8 +9,8 @@ from pydantic import (
     model_validator,
 )
 
-from utils import timedelta_to_hhmm
-from parser import parse_datetime, parse_timedelta
+from resopt_utils.utils import timedelta_to_hhmm
+from resopt_utils.parser import parse_datetime, parse_timedelta
 
 from schemas.standalone import PositiveTimedeltaEntry
 

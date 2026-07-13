@@ -15,7 +15,7 @@ from opt.validation import (
     validate_last_known_station,
 )
 from opt.models import OptimizationScenario
-from utils import timedelta_to_hhmm
+from resopt_utils.utils import timedelta_to_hhmm
 
 
 User = get_user_model()

@@ -10,10 +10,10 @@ from opt.models import OptimizationScenario, OutputFile
 
 from aws import sqs, s3
 from logify.log import log_info
-import config as cfg
+from resopt_utils.utils import get_logger
 
 
-logger = cfg.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 User = get_user_model()

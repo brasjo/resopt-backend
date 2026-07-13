@@ -13,7 +13,7 @@ from django.core.files.base import ContentFile
 
 from users.models import Organization
 from opt.models import OptimizationScenario, generate_run_directory
-from utils import list_leaf_directories
+from resopt_utils.utils import list_leaf_directories
 
 
 if TYPE_CHECKING:

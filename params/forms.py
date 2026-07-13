@@ -2,8 +2,8 @@ from django import forms
 from django.forms import formset_factory
 
 from params.models import ParameterSet
-from parser import parse_timedelta
-from utils import timedelta_to_hhmm
+from resopt_utils.parser import parse_timedelta
+from resopt_utils.utils import timedelta_to_hhmm
 
 
 class ParameterSetForm(forms.ModelForm):

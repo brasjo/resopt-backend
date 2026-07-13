@@ -5,8 +5,8 @@ from django.forms import formset_factory, BaseFormSet
 import math
 
 from schemas.rules.v1 import Operator, RelationalOperator
-from parser import parse_value_by_prio
-from utils import data_type_str, CustomFieldClass
+from resopt_utils.parser import parse_value_by_prio
+from resopt_utils.utils import data_type_str, CustomFieldClass
 
 
 EMPTY_CHOICE = "---------"

@@ -3,10 +3,10 @@ from django.forms import BaseFormSet, formset_factory
 from django.core.exceptions import ValidationError
 
 from opt.models import OptimizationScenario
-from utils import (
+from resopt_utils.utils import (
     timedelta_to_hhmm,
 )
-from parser import parse_timedelta
+from resopt_utils.parser import parse_timedelta
 
 
 class MinuteDeltaField(forms.CharField):

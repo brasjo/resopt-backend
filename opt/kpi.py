@@ -7,11 +7,11 @@ from typing import Any, Iterable
 
 from pydantic import BaseModel, Field, field_validator
 
-from utils import (
+from resopt_utils.utils import (
     timedelta_to_hhmmss,
     format_number,
 )
-from parser import parse_datetime, parse_timedelta
+from resopt_utils.parser import parse_datetime, parse_timedelta
 from opt.models import OutputFile
 
 

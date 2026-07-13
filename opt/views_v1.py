@@ -52,8 +52,8 @@ from .kpi import (
 from .postprocess import generate_output_file
 import opt.reports as reports
 from aws import s3, send_msg_to_optimizer_queue
-from parser import parse_value_by_prio
-from utils import (
+from resopt_utils.parser import parse_value_by_prio
+from resopt_utils.utils import (
     is_safe_path,
     diff_repr,
     data_type_str,
@@ -796,16 +796,13 @@ class OptSolutionDetailView(LoginRequiredMixin, View):
 
 class OptSolutionCompareView(LoginRequiredMixin, View):
     def get(self, request, run_id):
-        run_id = self.kwargs['run_id']
         opt_scenario = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-        if not opt_scenario:
-            return HttpResponse("Optimization run not found.", status=404)
 
         output_files = opt_scenario.output_files.all()
         output_files_dict = {of.id: of for of in output_files}
 
         # Get comma-separated IDs from query params
-        ids_str = self.request.GET.get('ids', '')
+        ids_str = request.GET.get('ids', '')
         try:
             ids = set(int(i) for i in ids_str.split(',') if i)
         except ValueError:
@@ -850,38 +847,39 @@ def compare_solution_ids(request):
         return HttpResponse('No solutions provided', status=400)
     solution_kpis_lst = []
     for solution in solutions_query.split(','):
-        print(f"Solution: {solution}")
         run_directory, solution_filename = solution.split(':')
         run_directory = f'/{run_directory.replace('-', '/')}'  # Convert back to original format
-        print(f"Run directory: {run_directory}, Solution Filename: {solution_filename}")
-        file_path = None
+        base_dir = None
+        relative_dir = None
         if run_directory.startswith(f'/{request.user.username}'):
-            run_directory = run_directory.replace(f'/{request.user.username}', '')
-            file_path = Path(f"{MEDIA_ROOT}/{request.user.username}{run_directory}/{solution_filename}")
+            relative_dir = run_directory.lstrip('/')
+            base_dir = MEDIA_ROOT
         elif request.user.is_superuser:
             if run_directory.startswith('/scenarios/'):
-                run_directory = run_directory.replace('/scenarios', '')
-                file_path = Path(f"{SCENARIOS_DIR}{run_directory}/{solution_filename}")
+                relative_dir = run_directory.removeprefix('/scenarios/')
+                base_dir = SCENARIOS_DIR
             elif run_directory.startswith('/output/'):
-                run_directory = run_directory.replace('/output', '')
-                file_path = Path(f"{OUTPUT_DIR}{run_directory}/{solution_filename}")
-        print(f"Looking for file at: {file_path}")
-        if not file_path or not file_path.is_file():
-            print(f"File not found: {file_path}")
-            return HttpResponse(f"File not found: {file_path}", status=404)
+                relative_dir = run_directory.removeprefix('/output/')
+                base_dir = OUTPUT_DIR
+        if base_dir is None or relative_dir is None:
+            return HttpResponse(f"Solution not found: {solution}", status=404)
+        relative_path = f"{relative_dir}/{solution_filename}"
+        if not is_safe_path(base_dir, relative_path):
+            logger.error(f"Unsafe path detected for solution '{solution}' with base '{base_dir}'")
+            return HttpResponse(f"Solution not found: {solution}", status=404)
+        file_path = Path(base_dir) / relative_path
+        if not file_path.is_file():
+            return HttpResponse(f"File not found: {solution}", status=404)
         content = json.loads(file_path.read_text())
         if not content.get('kpis'):
-            print(f"No KPIs found in: {file_path}")
-            return HttpResponse(f"No KPIs found in: {run_directory}/{solution_filename}", status=400)
-        folder = run_directory.split('/')[-1]
-        print(f"Folder: {folder}")
+            return HttpResponse(f"No KPIs found in: {relative_path}", status=400)
+        folder = relative_dir.split('/')[-1]
         sol_filename = f'{folder}/{solution_filename}'
         kpis = KPIs(**content['kpis'])
         solution_kpis = SolutionKPIs(
             solution_name=sol_filename,
             kpis=kpis,
         )
-        print(f"Loaded solution KPIs: {solution_kpis.kpis}")
         solution_kpis_lst.append(solution_kpis)
     if len(solution_kpis_lst) < 2:
         return HttpResponse("At least two solutions are required for comparison.", status=400)
@@ -918,10 +916,6 @@ def solution_reports_view(request, run_id, output_id):
     opt_run = output_file.run
     version = run.builder_version
     output_dict = json.loads(output_file.read_content())
-    run = OptimizationScenario.objects.get(id=run_id, user=request.user)
-    if not run:
-        logger.error(f"Optimization run with ID {run_id} not found for user {request.user.username}.")
-        return JsonResponse(output_dict, safe=False, json_dumps_params={'indent': 4})
     builder = run.read_builder_data()
     if not builder.get('flights'):
         logger.error(f"No flights found in input file for optimization run ID {run_id}.")
@@ -1008,40 +1002,6 @@ def run_summary_view(request, run_id):
     if not opt_run.run_summary_file or not (settings.MEDIA_ROOT / opt_run.run_summary_file.path).exists():
         return HttpResponse('Run summary file not found', status=404)
     return JsonResponse(opt_run.read_run_summary(), safe=False, json_dumps_params={'indent': 4})
-
-import time
-from django.http import StreamingHttpResponse
-
-
-@login_required
-def run_summary_stream_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    if not opt_run.run_summary_file:
-        return HttpResponse('Run summary file not found', status=404)
-
-    summary_path = settings.MEDIA_ROOT / opt_run.run_summary_file.path
-
-    def event_stream():
-        seen = set()
-        while True:
-            try:
-                if summary_path.exists():
-                    with open(summary_path) as f:
-                        data = json.load(f)
-                    new_solutions = [s for s in data.get('solutions', []) if s not in seen]
-                    if new_solutions:
-                        seen.update(new_solutions)
-                        yield f'data: {json.dumps({"solutions": new_solutions})}\n\n'
-                    else:
-                        yield ': keep-alive\n\n'  # prevent proxy timeouts
-            except (json.JSONDecodeError, OSError):
-                yield ': keep-alive\n\n'
-            time.sleep(1)
-
-    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
-    response['Cache-Control'] = 'no-cache'
-    response['X-Accel-Buffering'] = 'no'  # disable nginx buffering
-    return response
 
 
 @login_required
@@ -1236,10 +1196,8 @@ def directory_file_view(request, directory, filename):
     opt_dir = MEDIA_ROOT
     for dirpath, dirnames, _filenames in os.walk(opt_dir):
         if not dirnames:
-            relative_path = os.path.relpath(dirpath, opt_dir.parent)
-            directories.add(str(relative_path).replace('media/', ''))
-    print(f'directory: "{directory}"')
-    print('directories', directories)
+            relative_path = os.path.relpath(dirpath, opt_dir)
+            directories.add(str(relative_path))
     if directory not in directories:
         return HttpResponse(f"Could not find {directory}", status=400)
     if directory.startswith('output'):
@@ -1390,6 +1348,5 @@ def directory_reports_view(request, directory, filename):
     except Exception as e:
         logger.error(f"Error generating report: {e}")
         return HttpResponse(f"Error generating report.", status=500)
-    report_content = report.generate()
     content_type = reports.REPORT_FORMAT_TO_CONTENT_TYPE.get(report_format)
     return HttpResponse(report_content, content_type=content_type)

@@ -1,0 +1,85 @@
+<script>let userInput = null;</script>
+
+<div id="right-panel" style="position:fixed;right:0;top:0;width:176px;height:100vh;background:#f7f7f7;border-left:1px solid #ccc;z-index:102;padding:14px 12px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;font-family:sans-serif;overflow-y:auto;">
+
+  <div style="font-size:11px;font-weight:bold;color:#555;">Backend</div>
+  <input id="backend-base-url" type="text" placeholder="http://localhost:8000" value=""
+    style="font-size:10px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box;color:#333;"
+    onchange="fetchDirectories()">
+  <select id="dir-select" style="font-size:10px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box;color:#333;background:#fff;"
+    onclick="refreshDirectories()" onchange="loadBackendSelected()">
+    <option value="">-- select --</option>
+  </select>
+  <span id="dir-status" style="font-size:10px;color:#888;min-height:14px;display:block;"></span>
+
+  <div style="font-size:13px;font-weight:bold;color:#333;border-bottom:1px solid #ddd;padding-bottom:8px;margin-top:4px;display:flex;justify-content:space-between;align-items:center;">
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+      <input type="checkbox" id="solutions-all-checkbox" checked onchange="toggleAllSolutions(this.checked)" style="cursor:pointer;margin:0;">
+      <span>Solutions</span>
+    </label>
+    <label style="font-size:10px;font-weight:normal;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer;">
+      <input type="checkbox" id="live-checkbox" onchange="toggleLive()" style="cursor:pointer;">
+      <span id="live-label">Live</span>
+    </label>
+  </div>
+
+  <div id="kpi-display" style="font-size:11px;color:#555;line-height:1.55;min-height:44px;"></div>
+
+  <div id="playback-queue-count" style="font-size:11px;color:#888;min-height:14px;"></div>
+
+  <div id="solution-list" style="font-size:10px;color:#555;flex:1 1 0;min-height:60px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
+
+  <div style="display:flex;gap:6px;">
+    <a id="compare-link" href="#" target="_blank" class="panel-btn"
+       style="background:#8e44ad;text-align:center;text-decoration:none;opacity:0.4;pointer-events:none;flex:1;">Compare</a>
+    <button onclick="clearSelectedSolutions()" style="background:#7f8c8d;border:none;border-radius:5px;color:#fff;cursor:pointer;padding:2px 7px;font-size:11px;flex:0 0 auto;">✕</button>
+  </div>
+
+  <button id="playback-btn" class="panel-btn" onclick="togglePlayback()" style="background:#3498db;">Start</button>
+
+  <div style="border-top:1px solid #ddd;padding-top:12px;display:flex;flex-direction:column;gap:8px;">
+
+    <div style="font-size:11px;font-weight:bold;color:#555;">Sort aircraft by</div>
+    <input type="text" id="sort-key-input" placeholder="e.g. id, registration, custom_fields.type"
+      style="font-size:10px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box;color:#333;"
+      onkeydown="if(event.key==='Enter') applyAircraftSort(this.value.trim())">
+
+  </div>
+
+  <div style="border-top:1px solid #ddd;padding-top:12px;display:flex;flex-direction:column;gap:8px;">
+
+    <div style="font-size:11px;font-weight:bold;color:#555;">Timing</div>
+
+    <!-- linked timing bar: blue=animation, purple=pause -->
+    <div style="position:relative;height:10px;border-radius:5px;background:#e0e0e0;overflow:hidden;">
+      <div id="timing-bar-anim" style="position:absolute;left:0;top:0;height:100%;background:#3498db;border-radius:5px 0 0 5px;"></div>
+      <div id="timing-bar-pause" style="position:absolute;top:0;height:100%;background:#9b59b6;border-radius:0 5px 5px 0;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:#aaa;margin-top:-4px;">
+      <span style="color:#3498db;">● animate</span><span style="color:#9b59b6;">● pause</span>
+    </div>
+
+    <!-- interval slider -->
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:4px;">
+        <span>Interval</span><span id="interval-val" style="font-weight:bold;">2.0s</span>
+      </div>
+      <input type="range" id="interval-slider" min="800" max="10000" value="2000" step="100" class="timing-slider">
+    </div>
+
+    <!-- animation slider -->
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:4px;">
+        <span>Animation</span><span id="anim-val" style="font-weight:bold;color:#9b59b6;">0.7s</span>
+      </div>
+      <input type="range" id="anim-slider" min="100" max="9800" value="700" step="50" class="timing-slider anim-slider">
+    </div>
+
+  </div>
+
+
+</div>
+
+<div id="canvas-container" style="position: relative; overflow: hidden; border: 1px solid #999; padding: 10px; background: #f5f5f5;"></div>
+
+<div id="tooltip"></div>

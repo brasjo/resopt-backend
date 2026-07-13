@@ -10,8 +10,8 @@ from pydantic import (
     model_validator,
 )
 
-from utils import timedelta_to_int
-from parser import parse_datetime, parse_timedelta
+from resopt_utils.utils import timedelta_to_int
+from resopt_utils.parser import parse_datetime, parse_timedelta
 
 logger = logging.getLogger('validation_models_pub')
 DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M'

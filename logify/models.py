@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 
-from utils import truncate_str
+from resopt_utils.utils import truncate_str
 
 
 class LogEntry(models.Model):

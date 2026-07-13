@@ -8,7 +8,7 @@ from schemas.loader import get_opt_input_file_class
 from schemas.base import PositiveTimedeltaEntry
 from schemas.optinput.base import InputBuilder
 from schemas.activities.base import Activity
-from utils import format_update_message
+from resopt_utils.utils import format_update_message
 
 
 logger = logging.getLogger('preprocess')

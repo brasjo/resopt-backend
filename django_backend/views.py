@@ -13,7 +13,7 @@ from django.urls import reverse
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from utils import list_leaf_directories, is_within_base
+from resopt_utils.utils import list_leaf_directories, is_within_base
 from opt.models import OptimizationScenario
 
 

@@ -30,7 +30,6 @@ from .views_v1 import (
     directory_file_view,
     directory_solutions_view,
     directory_reports_view,
-    run_summary_stream_view,
 )
 
 app_name = 'opt'
@@ -66,5 +65,4 @@ urlpatterns = [
     path('directories/<path:directory>/solutions/', directory_solutions_view, name='directory-solutions-view'),  # For listing all run directories
     path('directories/<path:directory>/<str:filename>', directory_file_view, name='directory-file-view'),  # For listing all run directories
     path('directories/<path:directory>/<str:filename>/reports/', directory_reports_view, name='directory-reports-view'),  # For listing all run directories
-    path('opt/directories/<str:run_id>/stream/', run_summary_stream_view, name='run_summary_stream'),
 ]

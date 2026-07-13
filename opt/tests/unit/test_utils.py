@@ -1,7 +1,7 @@
 from datetime import timedelta
 from unittest import TestCase
 
-from utils import timedelta_to_hhmm
+from resopt_utils.utils import timedelta_to_hhmm
 
 class TestUtils(TestCase):
     def test_timedelta_to_hhmm(self):

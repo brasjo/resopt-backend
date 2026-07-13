@@ -9,7 +9,7 @@ from django.core.files.base import ContentFile
 from django_backend.utils.aws import generate_presigned_url
 from django.conf import settings
 
-from parser import parse_content, DictResult
+from resopt_utils.parser import parse_content, DictResult
 from schemas.loader import get_opt_input_builder_class, InputBuilder
 
 
