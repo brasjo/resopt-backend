@@ -8,14 +8,9 @@ Install the required packages:
 pip install -r requirements.txt
 ```
 
-Migrate the database:
+Migrate the database and create adminuser and guest users:
 ```bash
-python manage.py migrate
-```
-
-Create adminuser and guest users
-```bash
-python manage.py create_admin
+python manage.py db_init
 ```
 
 Run the Django server:
