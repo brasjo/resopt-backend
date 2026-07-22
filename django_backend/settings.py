@@ -227,8 +227,12 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOG_DIR = BASE_DIR / 'log'
-LOG_DIR.mkdir(exist_ok=True)
+# Overridable so a standalone deployment (gunicorn/nginx - no resopt-main
+# run.sh/honcho wrapping this in its own log capture, unlike local dev) can
+# point logs somewhere outside the repo checkout - same env-var-override
+# pattern as OPT_OUTPUT_DIR/OPT_SCENARIOS_DIR above.
+LOG_DIR = Path(os.getenv('LOG_DIR', BASE_DIR / 'logs')).resolve()
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 LOGGING = {
     'version': 1,
@@ -239,22 +243,35 @@ LOGGING = {
             'stream': sys.stdout,
             'formatter': 'default',  # Apply the default formatter here
         },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(LOG_DIR / 'django.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10 MB
+            'backupCount': 5,
+            'formatter': 'default',
+        },
     },
     'loggers': {
-        'preprocess': {
-            'handlers': ['console'],
-            'level': 'DEBUG',  # Or 'DEBUG' if you want more
+        # Covers every opt/* module via logging.getLogger(__name__) (e.g.
+        # 'opt.preprocess', 'opt.views_v1') through normal logger-name
+        # hierarchy - one entry here, no per-module registration needed.
+        'opt': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
             'propagate': False,
         },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'file'],
         'level': 'WARNING',  # To avoid overly verbose logs from other modules
     },
     'formatters': {
         'default': {
-            'format': '%(asctime)s - %(levelname)s - %(message)s',  # Format for timestamp, level, and message
-            'datefmt': '%Y-%m-%d %H:%M:%S',  # Specify date format for the timestamp
+            # Matches resopt_utils.utils.get_logger's format, so log lines
+            # look the same whether they came from this app's own loggers
+            # or from shared code (resopt-schemas) using that helper.
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
         },
     },
 }

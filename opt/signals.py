@@ -1,4 +1,5 @@
 # signals.py
+import logging
 import os
 
 from django.conf import settings
@@ -11,6 +12,7 @@ from .models import OptimizationScenario, OutputFile
 from logify.log import log_info
 
 
+logger = logging.getLogger(__name__)
 INPUT_BUILDER_FILENAME = settings.INPUT_BUILDER_FILENAME
 
 
@@ -18,7 +20,7 @@ INPUT_BUILDER_FILENAME = settings.INPUT_BUILDER_FILENAME
 def delete_input_builder_if_removed(sender, instance, **kwargs):
     content = ContentFile(settings.INPUT_BUILDER_TEMPLATE_CONTENT.encode())
     if not instance.pk:
-        print("Creating new OptimizationScenario instance, setting default input file content.")
+        logger.debug("Creating new OptimizationScenario instance, setting default input file content.")
         instance.input_builder.save(INPUT_BUILDER_FILENAME, content, save=False)
         return
 
@@ -62,11 +64,11 @@ def delete_file_on_model_delete(sender, instance, **kwargs):
                     os.remove(file_path)
                 return None
             except Exception as e:
-                print(f"Error deleting local file: {e}")
+                logger.error(f"Error deleting local file: {e}")
             return None
         s3 = get_s3_client()
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         try:
             s3.delete_object(Bucket=bucket_name, Key=file_name)
         except Exception as e:
-            print(f"Error deleting file from S3: {e}")
+            logger.error(f"Error deleting file from S3: {e}")

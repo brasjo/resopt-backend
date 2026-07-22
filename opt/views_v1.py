@@ -90,7 +90,7 @@ class OptView(LoginRequiredMixin, View):
 
     def post(self, request):
         opt_run = OptimizationScenario.objects.create(user=request.user)
-        print(f"Created new optimization run with ID: {opt_run.id}")
+        logger.info(f"Created new optimization run with ID: {opt_run.id}")
         return redirect('opt:detail', run_id=opt_run.id)
 
 
@@ -186,11 +186,11 @@ class OptDetailView(LoginRequiredMixin, View):
             relational_condition_data = []
             for cond in rule.relational_conditions:
                 activity_property_type = get_model_field_type(cond.activity_property, activity_cls)
-                print("activity_property_type:", activity_property_type)
-                print('activity_reference_value', cond.activity_reference_value)
+                logger.debug(f"activity_property_type: {activity_property_type}")
+                logger.debug(f"activity_reference_value: {cond.activity_reference_value}")
                 resource_property_type = get_model_field_type(cond.resource_property, resource_cls)
-                print("resource_property_type:", resource_property_type)
-                print('resource_reference_value', cond.resource_reference_value)
+                logger.debug(f"resource_property_type: {resource_property_type}")
+                logger.debug(f"resource_reference_value: {cond.resource_reference_value}")
                 condition_form_data = {
                     'activity_property': cond.activity_property,
                     'activity_property_type': activity_property_type,
@@ -204,7 +204,7 @@ class OptDetailView(LoginRequiredMixin, View):
                     'resource_reference_value': cond.resource_reference_value,
                     'resource_reference_value_type': type(cond.resource_reference_value),
                 }
-                print("Relational condition form data:", condition_form_data)
+                logger.debug(f"Relational condition form data: {condition_form_data}")
                 relational_condition_data.append(condition_form_data)
             relational_condition_formsets.append(
                 RelationalConditionFormSet(
@@ -224,7 +224,7 @@ class OptDetailView(LoginRequiredMixin, View):
         """
         # Here you would retrieve the optimization run details using run_id
         # For now, we will just render a placeholder template
-        print(f"Fetching details for run_id: {run_id}")
+        logger.debug(f"Fetching details for run_id: {run_id}")
         opt_run = OptimizationScenario.objects.filter(
             id=run_id,
             user=request.user,
@@ -314,7 +314,7 @@ class OptDetailView(LoginRequiredMixin, View):
                     opt_form.cleaned_data,
                 )
 
-                print(f"Updated OptimizationScenario {opt_run.id} {cleaned_changed_data}")
+                logger.info(f"Updated OptimizationScenario {opt_run.id}: {cleaned_changed_data}")
                 log_info(opt_run, f"Updated Optimization scenario: {opt_form_diff_str}")
                 messages.info(request, 'Scenario saved successfully')
         else:
@@ -329,8 +329,8 @@ class OptDetailView(LoginRequiredMixin, View):
         custom_min_turn_times = builder.parameters.custom_min_turn_times or []
         if params_form.is_valid():
             if params_form.has_changed():
-                print('params_form is_valid')
-                print('params_form.cleaned', params_form.cleaned_data)
+                logger.debug("params_form is valid")
+                logger.debug(f"params_form.cleaned_data: {params_form.cleaned_data}")
                 params = params_cls(**params_form.cleaned_data)
                 params.custom_min_turn_times = custom_min_turn_times
                 builder.parameters = params
@@ -343,7 +343,7 @@ class OptDetailView(LoginRequiredMixin, View):
         )
         context['min_turn_time_formset'] = min_turn_time_formset
         if min_turn_time_formset.is_valid():
-            print('min_turn_time_formset is valid')
+            logger.debug("min_turn_time_formset is valid")
             custom_min_turn_times = []
             has_custom_min_turn_times_errors = False
             for form in min_turn_time_formset:
@@ -358,10 +358,10 @@ class OptDetailView(LoginRequiredMixin, View):
                             log_error(opt_run, f"Error parsing minimum turn time '{key}': '{value}': {e}")
                             form.add_error('value', f"Invalid time delta: {e}")
                             has_custom_min_turn_times_errors = True
-            print('custom_min_turn_times:', custom_min_turn_times)
+            logger.debug(f"custom_min_turn_times: {custom_min_turn_times}")
             if custom_min_turn_times and not has_custom_min_turn_times_errors:
                 builder.parameters.custom_min_turn_times = custom_min_turn_times
-                print('Updated builder parameters with custom_min_turn_times')
+                logger.debug("Updated builder parameters with custom_min_turn_times")
             min_turn_time_formset = KeyValueFormSet(
                 prefix="min_turn_time",
                 initial=[
@@ -388,9 +388,9 @@ class OptDetailView(LoginRequiredMixin, View):
         ]
         context['activity_condition_formsets'] = activity_condition_formsets
         activity_condition_formsets_valid = all(fs.is_valid() for fs in activity_condition_formsets)
-        print(f"Activity condition formsets valid: {activity_condition_formsets_valid}")
-        print(f"Activity condition formsets errors: {[fs.errors for fs in activity_condition_formsets]}")
-        print(f"Activity condition formsets non form errors: {[fs.management_form.errors for fs in activity_condition_formsets]}")
+        logger.debug(f"Activity condition formsets valid: {activity_condition_formsets_valid}")
+        logger.debug(f"Activity condition formsets errors: {[fs.errors for fs in activity_condition_formsets]}")
+        logger.debug(f"Activity condition formsets non form errors: {[fs.management_form.errors for fs in activity_condition_formsets]}")
 
         resource_condition_formsets = [
             ResourceConditionFormSet(
@@ -401,9 +401,9 @@ class OptDetailView(LoginRequiredMixin, View):
         ]
         context['resource_condition_formsets'] = resource_condition_formsets
         resource_condition_formsets_valid = all(fs.is_valid() for fs in resource_condition_formsets)
-        print(f"Resource condition formsets valid: {resource_condition_formsets_valid}")
-        print(f"Resource condition formsets errors: {[fs.errors for fs in resource_condition_formsets]}")
-        print(f"Resource condition formsets non form errors: {[fs.management_form.errors for fs in resource_condition_formsets]}")
+        logger.debug(f"Resource condition formsets valid: {resource_condition_formsets_valid}")
+        logger.debug(f"Resource condition formsets errors: {[fs.errors for fs in resource_condition_formsets]}")
+        logger.debug(f"Resource condition formsets non form errors: {[fs.management_form.errors for fs in resource_condition_formsets]}")
         relational_condition_formsets = [
             RelationalConditionFormSet(
                 request.POST,
@@ -413,18 +413,18 @@ class OptDetailView(LoginRequiredMixin, View):
         ]
         context['relational_condition_formsets'] = relational_condition_formsets
         relational_condition_formsets_valid = all(fs.is_valid() for fs in relational_condition_formsets)
-        print(f"Relational condition formsets valid: {relational_condition_formsets_valid}")
-        print(f"Relational condition formsets errors: {[fs.errors for fs in relational_condition_formsets]}")
-        print(f"Relational condition formsets non form errors: {[fs.management_form.errors for fs in relational_condition_formsets]}")
+        logger.debug(f"Relational condition formsets valid: {relational_condition_formsets_valid}")
+        logger.debug(f"Relational condition formsets errors: {[fs.errors for fs in relational_condition_formsets]}")
+        logger.debug(f"Relational condition formsets non form errors: {[fs.management_form.errors for fs in relational_condition_formsets]}")
 
         if rule_formset.is_valid():
-            print("rule_formset is valid")
+            logger.debug("rule_formset is valid")
             rules = []
             for i, rule_form in enumerate(rule_formset):
                 if not rule_form.cleaned_data:
                     continue
                 if rule_form.cleaned_data.get("DELETE", False):
-                    print(f"Skipping rule {i} marked for deletion")
+                    logger.debug(f"Skipping rule {i} marked for deletion")
                     continue
                 rule_dict = deepcopy(rule_form.cleaned_data)
 
@@ -434,16 +434,16 @@ class OptDetailView(LoginRequiredMixin, View):
                     activity_conditions_cleaned = []
                     for form in activity_condition_formset:
                         if form.cleaned_data.get("DELETE", False):
-                            print("Skipping DELETE form in activity conditions")
+                            logger.debug("Skipping DELETE form in activity conditions")
                             continue
                         if not form.cleaned_data:
-                            print("Skipping empty form in activity conditions")
+                            logger.debug("Skipping empty form in activity conditions")
                             continue
                         if form in activity_condition_formset.deleted_forms:
-                            print("Skipping deleted form in activity conditions")
+                            logger.debug("Skipping deleted form in activity conditions")
                             continue
                         activity_conditions_cleaned.append(form.cleaned_data)
-                    print("Activity conditions cleaned data:", activity_conditions_cleaned)
+                    logger.debug(f"Activity conditions cleaned data: {activity_conditions_cleaned}")
                     for cond_data in activity_conditions_cleaned:
                         condition = builder.rule_cls.activity_condition_cls(
                             **cond_data
@@ -458,16 +458,16 @@ class OptDetailView(LoginRequiredMixin, View):
                     relational_conditions_cleaned = []
                     for form in relational_condition_formset:
                         if form.cleaned_data.get("DELETE", False):
-                            print("Skipping DELETE form in relational conditions")
+                            logger.debug("Skipping DELETE form in relational conditions")
                             continue
                         if not form.cleaned_data:
-                            print("Skipping empty form in relational conditions")
+                            logger.debug("Skipping empty form in relational conditions")
                             continue
                         if form in relational_condition_formset.deleted_forms:
-                            print("Skipping deleted form in relational conditions")
+                            logger.debug("Skipping deleted form in relational conditions")
                             continue
                         relational_conditions_cleaned.append(form.cleaned_data)
-                    print("Relational conditions cleaned data:", relational_conditions_cleaned)
+                    logger.debug(f"Relational conditions cleaned data: {relational_conditions_cleaned}")
                     for cond_data in relational_conditions_cleaned:
                         condition = builder.rule_cls.relational_condition_cls(
                             **cond_data
@@ -481,41 +481,41 @@ class OptDetailView(LoginRequiredMixin, View):
                     resource_conditions_cleaned = []
                     for form in resource_condition_formset:
                         if form.cleaned_data.get("DELETE", False):
-                            print("Skipping DELETE form in resource conditions")
+                            logger.debug("Skipping DELETE form in resource conditions")
                             continue
                         if not form.cleaned_data:
-                            print("Skipping empty form in resource conditions")
+                            logger.debug("Skipping empty form in resource conditions")
                             continue
                         if form in resource_condition_formset.deleted_forms:
-                            print("Skipping deleted form in resource conditions")
+                            logger.debug("Skipping deleted form in resource conditions")
                             continue
                         resource_conditions_cleaned.append(form.cleaned_data)
-                    print("Resource conditions cleaned data:", resource_conditions_cleaned)
+                    logger.debug(f"Resource conditions cleaned data: {resource_conditions_cleaned}")
                     for cond_data in resource_conditions_cleaned:
                         condition = builder.rule_cls.resource_condition_cls(
                             **cond_data
                         )
                         resource_conditions.append(condition)
                 rule_dict["resource_conditions"] = resource_conditions
-                print("Constructed rule dict:", rule_dict)
+                logger.debug(f"Constructed rule dict: {rule_dict}")
                 try:
                     rule = builder.rule_cls(**rule_dict)
                     rules.append(rule)
                 except ValidationError as e:
                     rule_form.add_error(None, f"Error in rule validation: {e}")
-                    print(f"Validation error for rule {i}: {e}")
+                    logger.warning(f"Validation error for rule {i}: {e}")
             if (activity_condition_formsets_valid
                 and relational_condition_formsets_valid
                 and resource_condition_formsets_valid):
                 builder.rules = rules
-                print("Updated builder rules with new rules and conditions")
-            print('RULES:', builder.rules)
+                logger.debug("Updated builder rules with new rules and conditions")
+            logger.debug(f"RULES: {builder.rules}")
             # context['activity_condition_formsets'] = self.generate_activity_condition_formsets(builder)
             # context['relational_condition_formsets'] = self.generate_relational_condition_formsets(builder)
             # context['resource_condition_formsets'] = self.generate_resource_condition_formsets(builder)
         else:
-            print('rule_formset is not valid or some relational_condition_formsets are not valid')
-            print(request.POST)
+            logger.warning("rule_formset is not valid or some relational_condition_formsets are not valid")
+            logger.debug(f"request.POST: {request.POST}")
             rule_error_str = "Rules form submission failed."
             if rule_formset.errors and rule_formset.errors != [{}]:
                 rule_error_str += f" Errors: {rule_formset.errors}."
@@ -542,7 +542,7 @@ class OptDetailView(LoginRequiredMixin, View):
                         builder.flight_cls,
                     )
                     form.activity_property_type_str = data_type_str(form.activity_property_type)
-                print("form.activity_property_type:", form.activity_property_type)
+                logger.debug(f"form.activity_property_type: {form.activity_property_type}")
                 resource_property_value = form.cleaned_data.get("resource_property")
                 if not resource_property_value:
                     form.resource_property_type = type(str)
@@ -552,11 +552,11 @@ class OptDetailView(LoginRequiredMixin, View):
                         resource_property_value,
                         builder.aircraft_cls,
                     )
-                    print("form.resource_property_type:", form.resource_property_type)
+                    logger.debug(f"form.resource_property_type: {form.resource_property_type}")
                     form.resource_property_type_str = data_type_str(form.resource_property_type)
 
         if builder.model_dump() != original_builder.model_dump():
-            print('Builder has changed, saving builder.')
+            logger.info("Builder has changed, saving builder.")
             opt_run.save_builder(builder)
             diff_str = diff_repr(
                 original_builder.model_dump(),
@@ -609,7 +609,7 @@ def individual_validation_view(request, run_id):
     builder = opt_run.create_builder()
     errors = individual_validation(builder)
     if errors:
-        print(f"Validation errors for run_id {run_id}: {errors}")
+        logger.warning(f"Validation errors for run_id {run_id}: {errors}")
         for error in errors:
             log_error(opt_run, error)
             messages.error(request, error)
@@ -619,7 +619,7 @@ def individual_validation_view(request, run_id):
             "Individual validation successful."
         )
         log_info(opt_run, "Individual validation successful.")
-        print(f"Individual validation successful for run ID {run_id}")
+        logger.info(f"Individual validation successful for run ID {run_id}")
     return redirect('opt:detail', run_id=run_id)
 
 
@@ -645,7 +645,7 @@ def relational_validation_view(request, run_id):
     builder = builder_cls(**input_builder_data)
     errors = relational_validation(builder)
     if errors:
-        print(f"Validation errors for run_id {run_id}: {errors}")
+        logger.warning(f"Validation errors for run_id {run_id}: {errors}")
         for error in errors:
             log_error(opt_run, error)
             messages.error(request, error)
@@ -655,7 +655,7 @@ def relational_validation_view(request, run_id):
             "Relational validation successful."
         )
         log_info(opt_run, "Relational validation successful.")
-        print(f"Relational validation successful for run ID {run_id}")
+        logger.info(f"Relational validation successful for run ID {run_id}")
     return redirect('opt:detail', run_id=run_id)
 
 
@@ -684,7 +684,7 @@ class OptCloneView(LoginRequiredMixin, View):
         input_builder_data = original_run.read_builder_data()
         input_builder_data_copy = deepcopy(input_builder_data)
         cloned_run.update_input_builder(input_builder_data_copy)
-        print(f"Cloned optimization run {original_run.id} to new run {cloned_run.id}")
+        logger.info(f"Cloned optimization run {original_run.id} to new run {cloned_run.id}")
         log_info(cloned_run, f"Cloned from optimization run {original_run.id} '{original_run.name}'.")
         messages.success(request, f"Optimization run cloned successfully.")
         return redirect('opt:detail', run_id=cloned_run.id)
@@ -695,12 +695,12 @@ class OptChooseParamSetView(LoginRequiredMixin, View):
         """
         Handle POST requests to choose a parameter set for the optimization run.
         """
-        print('IN POST')
+        logger.debug("OptChooseParamSetView.post called")
         opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-        print('opt_run', opt_run)
-        print('usr org', request.user.profile.organization)
+        logger.debug(f"opt_run: {opt_run}")
+        logger.debug(f"user org: {request.user.profile.organization}")
         param_set = get_object_or_404(ParameterSet, pk=param_set_id, organization=request.user.profile.organization)
-        print('param_set', param_set)
+        logger.debug(f"param_set: {param_set}")
         parameters_cls = get_parameters_class(opt_run.builder_version)
         with open(param_set.params.path) as f:
             params_data = json.load(f)
@@ -708,7 +708,7 @@ class OptChooseParamSetView(LoginRequiredMixin, View):
         params = {
             "parameters": json.loads(params.model_dump_json(indent=4))
         }
-        print('params:', params)
+        logger.debug(f"params: {params}")
         opt_run.update_input(json.dumps(params, indent=4))
         log_info(opt_run, f"Parameter set '{param_set.name}' chosen for the optimization run.")
         messages.success(request, f"Parameter set '{param_set.name}' has been chosen for the optimization run.")
@@ -783,9 +783,7 @@ class OptSolutionDetailView(LoginRequiredMixin, View):
         kpis_rows = [
             [name] + list(kpis[name].values()) for name in kpis.keys()
         ]
-        print('=========================================')
-        print('kpis_rows', kpis_rows)
-        print('output_file_names', output_file_names)
+        logger.debug(f"kpis_rows: {kpis_rows}, output_file_names: {output_file_names}")
         context = {
             'output_file_ids': [output_file.id],
             'output_file_names': output_file_names,
@@ -819,19 +817,16 @@ class OptSolutionCompareView(LoginRequiredMixin, View):
         output_files = OutputFile.objects.filter(run_id=run_id, id__in=ids)
         output_file_names = [str(f) for f in output_files]
         diffs = diff_kpis_from_output_file(output_files)
-        print('diffs', diffs)
+        logger.debug(f"diffs: {diffs}")
         kpis_diff_rows = [
             [name] + list(diffs[name].values()) for name in diffs.keys()
         ]
-        print('kpis_diff_rows', kpis_diff_rows)
+        logger.debug(f"kpis_diff_rows: {kpis_diff_rows}")
         kpis = kpi_table_from_output_files(output_files)
         kpis_rows = [
             [name] + list(kpis[name].values()) for name in kpis.keys()
         ]
-        print('=========================================')
-        print('kpis_rows', kpis_rows)
-        print('output_file_names', output_file_names)
-        print('kpis_diff_rows', kpis_diff_rows)
+        logger.debug(f"kpis_rows: {kpis_rows}, output_file_names: {output_file_names}, kpis_diff_rows: {kpis_diff_rows}")
         context = {
             'output_file_names': output_file_names,
             'kpis_diff_rows': kpis_diff_rows,
@@ -922,12 +917,12 @@ def solution_reports_view(request, run_id, output_id):
         response = JsonResponse(output_dict, safe=False, json_dumps_params={'indent': 4})
         response['Content-Disposition'] = 'inline; filename="output.json"'
         return response
-    print('output_dict', output_dict)
+    logger.debug(f"output_dict: {output_dict}")
     output_file_py = get_opt_output_file_class(version)(**output_dict)
     builder_cls = get_opt_input_builder_class(version)
     builder = builder_cls(**opt_run.read_builder_data())
     output_file_new = generate_output_file(builder, output_file_py)
-    print('output_file_new', output_file_new.model_dump_json(indent=4))
+    logger.debug(f"output_file_new: {output_file_new.model_dump_json(indent=4)}")
     response = JsonResponse(output_file_new.model_dump(exclude_none=True), safe=False)
     response['Content-Disposition'] = 'inline; filename="output.json"'
     return response
@@ -939,7 +934,7 @@ def solution_reports_old_view(request):
     output_filename = request.GET.get('output')
     format_ = request.GET.get('format', 'json')
     report_type = request.GET.get('report_type')
-    print(f"Requested report for run: {run_dir}, output: {output_filename}, format: {format_}, type: {report_type}")
+    logger.info(f"Requested report for run: {run_dir}, output: {output_filename}, format: {format_}, type: {report_type}")
     if run_dir.startswith('/scenarios/'):
         run_dir = run_dir.replace('/scenarios', '')
         file_path = Path(f"{SCENARIOS_DIR}{run_dir}/{output_filename}")
@@ -973,7 +968,7 @@ def input_builder_view(request, run_id):
 def input_file_view(request, run_id):
     opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
     output_folder = MEDIA_ROOT / opt_run.run_directory
-    print(f"Looking for input file in: {output_folder}")
+    logger.debug(f"Looking for input file in: {output_folder}")
     if not output_folder.exists() or not output_folder.is_dir():
         return HttpResponse('Output folder not found', status=404)
     filepath = output_folder / INPUT_FILENAME
@@ -994,11 +989,9 @@ def user_input_file_view(request, run_id):
 @login_required
 def run_summary_view(request, run_id):
     logger.info('Fetching run summary for run ID: %s', run_id)
-    print('Fetching run summary for run ID:', run_id)
     opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
     logger.info('Looking for run summary file at: %s', opt_run.run_summary_file.path)
-    print('Looking for run summary file at:', settings.MEDIA_ROOT / opt_run.run_summary_file.path)
-    print('opt_run.run_summary_file', opt_run.run_summary_file)
+    logger.debug(f"opt_run.run_summary_file: {opt_run.run_summary_file}")
     if not opt_run.run_summary_file or not (settings.MEDIA_ROOT / opt_run.run_summary_file.path).exists():
         return HttpResponse('Run summary file not found', status=404)
     return JsonResponse(opt_run.read_run_summary(), safe=False, json_dumps_params={'indent': 4})
@@ -1035,14 +1028,14 @@ def compare_solutions(request):
     for output_file in output_files:
         content = json.loads(output_file.read_content())
         if not content.get('kpis'):
-            print(f"No KPIs found in: {output_file}")
+            logger.warning(f"No KPIs found in: {output_file}")
             return HttpResponse(f"No KPIs found in: {output_file}", status=400)
         kpis = KPIs(**content['kpis'])
         solution_kpis = SolutionKPIs(
             solution_name=str(output_file),
             kpis=kpis,
         )
-        print(f"Loaded solution KPIs: {solution_kpis.kpis}")
+        logger.debug(f"Loaded solution KPIs: {solution_kpis.kpis}")
         solution_kpis_lst.append(solution_kpis)
     if len(solution_kpis_lst) < 2:
         return HttpResponse("At least two solutions are required for comparison.", status=400)
@@ -1094,7 +1087,7 @@ def send_to_optimizer_view(request, run_id):
         log_error(opt_run, f"Failed to upload input file to S3: {e}")
         return redirect('opt:detail', run_id=run_id)
     try:
-        logger.info(opt_run, "Sending message to optimizer queue...")
+        logger.info(f"Sending message to optimizer queue for run {opt_run.id}...")
         send_msg_to_optimizer_queue(json.dumps({
             "opt_scenario_id": opt_run.id,
             "s3_bucket": AWS_STORAGE_BUCKET_NAME,
@@ -1104,7 +1097,7 @@ def send_to_optimizer_view(request, run_id):
         }))
         logger.info("Message sent to optimizer queue.")
     except Exception as e:
-        print(f"Failed to send message to optimizer queue: {e}")
+        logger.error(f"Failed to send message to optimizer queue: {e}")
         messages.error(request, f"Failed to send message to optimizer queue: {e}")
         log_error(opt_run, f"Failed to send message to optimizer queue: {e}")
     return redirect('opt:detail', run_id=run_id)
@@ -1165,7 +1158,7 @@ def directories_view(request):
 @login_required
 def directory_file_view(request, directory, filename):
     directory = directory
-    print(f"Fetching file '{filename}' from directory '{directory}' for user '{request.user.username}'")
+    logger.debug(f"Fetching file '{filename}' from directory '{directory}' for user '{request.user.username}'")
     user = request.user
     opt_run = OptimizationScenario.objects.filter(user=user, run_directory=directory).first()
     if not user.is_superuser:
@@ -1179,7 +1172,7 @@ def directory_file_view(request, directory, filename):
         with open(file_path, 'r', encoding='utf-8') as f:
             content_dict = json.load(f)
         return JsonResponse(content_dict, safe=False, json_dumps_params={'indent': 4})
-    print('opt_run', opt_run)
+    logger.debug(f"opt_run: {opt_run}")
     directories = set((opt_run.run_directory,)) if opt_run else set()
     # Add all relative directories under settings.OUTPUT_DIR
     output_dir = OUTPUT_DIR
@@ -1223,7 +1216,7 @@ def directory_file_view(request, directory, filename):
 
 @login_required
 def directory_solutions_view(request, directory):
-    print(f"Fetching solutions from directory '{directory}' for user '{request.user.username}'")
+    logger.debug(f"Fetching solutions from directory '{directory}' for user '{request.user.username}'")
     user = request.user
     opt_run = OptimizationScenario.objects.filter(user=user, run_directory=directory).first()
     if not user.is_superuser:
@@ -1235,7 +1228,7 @@ def directory_solutions_view(request, directory):
             'solutions': output_files,
         }
         return JsonResponse(context, safe=False, json_dumps_params={'indent': 4})
-    print('opt_run', opt_run)
+    logger.debug(f"opt_run: {opt_run}")
     directories = set((opt_run.run_directory,)) if opt_run else set()
     # Add all relative directories under settings.OUTPUT_DIR
     output_dir = OUTPUT_DIR
@@ -1253,10 +1246,10 @@ def directory_solutions_view(request, directory):
         if not dirnames:
             relative_path = os.path.relpath(dirpath, opt_dir)
             directories.add(str(relative_path))
-    print(f'directory "{directory}"')
-    print(f'directories: {directories}')
+    logger.debug(f'directory "{directory}"')
+    logger.debug(f'directories: {directories}')
     if directory not in directories:
-        print(f'Could not find directory "{directory}"')
+        logger.warning(f'Could not find directory "{directory}"')
         return HttpResponse(f"Could not find {directory}", status=400)
     if directory.startswith('output'):
         base_dir = BASE_DIRS['output']
@@ -1266,9 +1259,9 @@ def directory_solutions_view(request, directory):
         base_dir = MEDIA_ROOT
     else:
         return HttpResponse(f"Could not find {directory}", status=400)
-    print('base_dir', base_dir)
+    logger.debug(f"base_dir: {base_dir}")
     dir_path = Path(base_dir) / directory
-    print('dir_path', dir_path)
+    logger.debug(f"dir_path: {dir_path}")
     files = [str(Path(directory) / file.name) for file in dir_path.glob('step*.json') if file.is_file()]
 
     context = {

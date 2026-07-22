@@ -11,7 +11,7 @@ from schemas.activities.base import Activity
 from resopt_utils.utils import format_update_message
 
 
-logger = logging.getLogger('preprocess')
+logger = logging.getLogger(__name__)
 DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M'
 
 
@@ -45,25 +45,6 @@ class PreprocessingContext:
         debug_count = len(self.debug_messages)
 
         return f"Errors: {error_count}, Info: {info_count}, Debug: {debug_count}"
-
-    def print_summary(self) -> None:
-        """Print a summary of the messages."""
-        print(self.get_summary())
-
-        if self.error_messages:
-            print("\nErrors:")
-            for error in self.error_messages:
-                print(f"- {error}")
-
-        if self.info_messages:
-            print("\nInfos:")
-            for info in self.info_messages:
-                print(f"- {info}")
-
-        if self.debug_messages:
-            print("\nDebugs:")
-            for debug in self.debug_messages:
-                print(f"- {debug}")
 
     def __str__(self) -> str:
         """Return a string representation of the preprocess result."""
@@ -304,8 +285,8 @@ def set_maintenance_ids(context: PreprocessingContext) -> None:
         ac.id: ac for ac in builder.aircrafts if ac.id is not None
     }
     for ac in builder.aircrafts:
-        print('aircraft:', ac.id, type(ac.id))
-    print('old_id_aircraft_map:', type(old_id_aircraft_map), old_id_aircraft_map.keys())
+        logger.debug(f"aircraft: {ac.id} ({type(ac.id)})")
+    logger.debug(f"old_id_aircraft_map: {type(old_id_aircraft_map)} {old_id_aircraft_map.keys()}")
 
     id_aircraft_map = builder.generate_resource_ids(builder.aircrafts)
     aircraft_id_map = {
@@ -368,8 +349,6 @@ def generate_input_file(
         scenario.period_start,
         scenario.period_end
     )
-    # preprocessing_context.print_summary()
-
     # Prepare the base PreprocessResult
     result = PreprocessResult(
         input_file=None,
@@ -378,7 +357,7 @@ def generate_input_file(
         info_messages=preprocessing_context.info_messages,
     )
     opt_input_file_class = get_opt_input_file_class(scenario.builder_version)
-    print('Dumping input fiel')
+    logger.debug("Dumping input file")
     try:
         # Attempt to create InputFile from the builder
         input_file = opt_input_file_class(

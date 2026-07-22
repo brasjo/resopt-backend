@@ -72,7 +72,7 @@ class AssignmentInputJsonReport(Report):
                 'resource': json.loads(ac.model_dump_json(indent=4, exclude_none=True)),
                 'activities': [json.loads(act.model_dump_json(indent=4, exclude_none=True)) for act in activities],
             })
-        print('assignments', assignments)
+        logger.debug(f"assignments: {assignments}")
         return json.dumps(assignments, indent=4)
 
 

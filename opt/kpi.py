@@ -1,5 +1,6 @@
 from typing import Literal
 import json
+import logging
 
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -65,6 +66,8 @@ class TimedeltaKPI(BaseModel):
 
 KPI = IntKPI | FloatKPI | DatetimeKPI | TimedeltaKPI
 KPIValue = int | float | str | timedelta
+
+logger = logging.getLogger(__name__)
 
 
 class KPIs(BaseModel):
@@ -138,17 +141,17 @@ def output_files_to_solution_kpis(
 ) -> list[SolutionKPIs]:
     solution_kpis_lst: list[SolutionKPIs] = []
     for output in output_files:
-        print('output', output)
+        logger.debug(f"output: {output}")
         data = json.loads(output.read_content())
         file_name = output.file.name.split('/')[-1]
         kpis = {
             'solution_name': file_name,
             'kpis': data['kpis'],
         }
-        print('kpis', kpis)
+        logger.debug(f"kpis: {kpis}")
         solution_kpi = SolutionKPIs(**kpis)
         solution_kpis_lst.append(solution_kpi)
-        print('solution_kpi', solution_kpi)
+        logger.debug(f"solution_kpi: {solution_kpi}")
     return solution_kpis_lst
 
 
@@ -161,23 +164,20 @@ def diff_kpis(lst: list[SolutionKPIs]) -> dict[str, dict[str, KPIValue]]:
         for name, value in sol_kpis.model_dump().items():
             diffs[name][solution_kpi.solution_name] = value
     max_values_dict = {}
-    print('diffs', diffs)
+    logger.debug(f"diffs: {diffs}")
     for name, values_dict in diffs.items():
         max_values_dict[name] = max(values_dict.items(), key=lambda x: x[1])
-    print('max_values_dict', max_values_dict)
+    logger.debug(f"max_values_dict: {max_values_dict}")
     diff_dict = {}
-    tup = zip(diffs.items(), max_values_dict.values())
-    for item in tup:
-        print('item', item)
     for (name, values_dict), (name_solution, max_value) in zip(diffs.items(), max_values_dict.values()):
-        print(f"Computing differences for KPI '{name}' (max: {max_value})")
+        logger.debug(f"Computing differences for KPI '{name}' (max: {max_value})")
         diff_dict[name] = {}
         for solution_name, value in values_dict.items():
             if solution_name == name_solution or value == max_value:
                 diff_dict[name][solution_name] = max_value
                 continue
             diff_dict[name][solution_name] = diff_values(max_value, value)
-    print('diff_dict', diff_dict)
+    logger.debug(f"diff_dict: {diff_dict}")
     for name, values_dict in diff_dict.items():
         max_value = max_values_dict[name][1]
         for solution_name, value in values_dict.items():
@@ -196,7 +196,7 @@ def diff_kpis(lst: list[SolutionKPIs]) -> dict[str, dict[str, KPIValue]]:
                 values_dict[solution_name] = sign + value_to_string(value) + percentage_str
             else:
                 values_dict[solution_name] = sign + value_to_string(value)
-    print('diff_dict', diff_dict)
+    logger.debug(f"diff_dict: {diff_dict}")
     return diff_dict
 
 

@@ -13,7 +13,7 @@ from pydantic import (
 from resopt_utils.utils import timedelta_to_int
 from resopt_utils.parser import parse_datetime, parse_timedelta
 
-logger = logging.getLogger('validation_models_pub')
+logger = logging.getLogger(__name__)
 DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M'
 
 

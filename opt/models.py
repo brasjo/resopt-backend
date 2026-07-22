@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
 
@@ -21,7 +22,7 @@ AWS_PRESIGNED_URL_EXPIRATION = settings.AWS_PRESIGNED_URL_EXPIRATION
 RUN_SUMMARY_FILENAME = settings.RUN_SUMMARY_FILENAME
 UNLOCK_SCENARIO_ON_STATUSES = set(('pending',))
 
-
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -133,20 +134,20 @@ class OptimizationScenario(models.Model):
         return self.status not in UNLOCK_SCENARIO_ON_STATUSES
 
     def save(self, *args, **kwargs):
-        print(f"Creating new OptimizationScenario {self.id} for user {self.user.username}")
+        logger.debug(f"Creating new OptimizationScenario {self.id} for user {self.user.username}")
         if not self.run_directory:
             self.run_directory = generate_run_directory(self.user.username)
-            print(f"Generated run directory: {self.run_directory}")
+            logger.debug(f"Generated run directory: {self.run_directory}")
         old_input_builder = self.input_builder
         super().save(*args, **kwargs)
         if not self.input_builder:
             if old_input_builder:
-                print(f"Deleting old input file: {old_input_builder.name}")
+                logger.debug(f"Deleting old input file: {old_input_builder.name}")
                 old_input_builder.delete(save=False)
             content = INPUT_BUILDER_TEMPLATE_CONTENT.encode()
             self.input_builder.save(INPUT_BUILDER_FILENAME, ContentFile(content), save=True)
         if not self.user_input:
-            print(f"Creating empty user input file for OptimizationScenario {self.id}")
+            logger.debug(f"Creating empty user input file for OptimizationScenario {self.id}")
             content = b"{}"
             self.user_input.save(USER_INPUT_FILENAME, ContentFile(content), save=True)
 
@@ -215,7 +216,6 @@ class OptimizationScenario(models.Model):
 
     def update_input(self, content: str) -> list[str]:
         result = self.parse_content(content)
-        # print("Update input parse result:", result)
         if result.errors:
             return result.errors
         new_data_parsed = result.items
@@ -233,7 +233,7 @@ class OptimizationScenario(models.Model):
 
     def update_input_builder(self, data: dict) -> None:
         current_data = self.read_builder_data()
-        print("Updating input builder with data:", data)
+        logger.debug(f"Updating input builder with data: {data}")
         current_data.update(data)
         # Last validation before save
         builder = self.builder_cls(**current_data)
