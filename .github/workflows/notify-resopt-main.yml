@@ -1,0 +1,21 @@
+name: Notify resopt-main
+
+# Tells brasjo/resopt-main to re-run its install test against this repo's
+# latest main, since resopt-main clones this repo as part of its install.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fire module-updated repository_dispatch on resopt-main
+        env:
+          TOKEN: ${{ secrets.RESOPT_MAIN_DISPATCH_TOKEN }}
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/brasjo/resopt-main/dispatches \
+            -d "{\"event_type\":\"module-updated\",\"client_payload\":{\"repository\":\"${GITHUB_REPOSITORY}\",\"sha\":\"${GITHUB_SHA}\"}}"
