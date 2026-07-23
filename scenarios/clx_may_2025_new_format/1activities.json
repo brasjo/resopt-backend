@@ -1,0 +1,16 @@
+[
+    {
+        "id": "1",
+        "start": "2025-04-21T12:25:00",
+        "end": "2025-04-21T13:45:00",
+        "fl_num": 11,
+        "adep": "LUX",
+        "ades": "MXP",
+        "planned_actype": "74I",
+        "aircraft_id": "LX-WCV",
+        "route": 9261,
+        "service_type": "F",
+        "airline": "C8",
+        "rotation_id": "1"
+    }
+]

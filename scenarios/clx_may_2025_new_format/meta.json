@@ -1,0 +1,19 @@
+{
+    "period_start": "2025-04-21 00:00:00",
+    "period_end": "2025-06-09 23:59:00",
+    "generations": {
+        "gen0": [
+            "gen0_sol0.json"
+        ],
+        "gen1": [
+            "gen1_sol0.json"
+        ]
+    },
+    "solutions": [
+        "step0.json",
+        "step1.json"
+    ],
+    "mean_fitness": [],
+    "std_deviation": [],
+    "best_fitness": []
+}

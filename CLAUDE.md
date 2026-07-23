@@ -13,18 +13,30 @@ Django app in the ResOpt module graph: `resopt-utils` → `resopt-schemas` → *
 
 This repo talks to `resopt-optimizer` only as an external service/process boundary, through the data contracts defined in `resopt-schemas`. **Never read, grep, or reference `resopt-optimizer`'s internal files from this repo's code or docs** — that repo is private, and its own CLAUDE.md restricts direct file access even from other Claude Code sessions. If a task in this repo seems to need knowledge of the optimizer's internals, ask the user rather than looking.
 
-## Known open issue: OUTPUT_DIR / SCENARIOS_DIR
+## Known open issue: OUTPUT_DIR
 
-`django_backend/settings.py` still defaults `OUTPUT_DIR`/`SCENARIOS_DIR` to a
-path one level up from this repo (`../tmp/output`, `../scenarios`) — a
-leftover from when backend and optimizer were siblings in one monorepo and
-shared a filesystem. Now that they're separate repos (and potentially separate
-deployments), that default only works in a local dev checkout where both repos
-happen to sit under the same parent directory. Both are overridable via
-`OPT_OUTPUT_DIR` / `OPT_SCENARIOS_DIR` env vars. The optimizer already has S3
-plumbing (`config.py`'s `S3_BUCKET`, this repo's `aws.py`) — that's the likely
-real fix, but wiring backend/optimizer together over S3 instead of a shared
-path hasn't been done. Don't silently pick a new default; ask the user.
+`django_backend/settings.py` still defaults `OUTPUT_DIR` to a path one level
+up from this repo (`../tmp/output`) — a leftover from when backend and
+optimizer were siblings in one monorepo and shared a filesystem. Now that
+they're separate repos (and potentially separate deployments), that default
+only works in a local dev checkout where both repos happen to sit under the
+same parent directory. Overridable via the `OPT_OUTPUT_DIR` env var. The
+optimizer already has S3 plumbing (`config.py`'s `S3_BUCKET`, this repo's
+`aws.py`) — that's the likely real fix, but wiring backend/optimizer
+together over S3 instead of a shared path hasn't been done. Don't silently
+pick a new default; ask the user.
+
+## SCENARIOS_DIR: checked into this repo, not shared with the optimizer
+
+Unlike `OUTPUT_DIR` (optimizer-generated solve results), `scenarios/` holds
+dev-facing benchmark datasets — real-world data plus known-good reference
+assignments, used to evaluate optimizer output quality. These are built by
+the team, not generated at runtime by either service, so they're checked
+into this repo (`scenarios/`, `SCENARIOS_DIR` in settings.py) rather than
+S3 or the optimizer repo. If a scenario needs to actually run through the
+optimizer for benchmarking, submit it through the normal send-to-optimizer
+flow (same S3 upload + SQS message as any other optimization run) — don't
+add any direct filesystem/git coupling to `resopt-optimizer` for this.
 
 ## Local dev login
 

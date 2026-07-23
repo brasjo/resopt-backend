@@ -1,0 +1,395 @@
+[
+    {
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "CV"
+        },
+        "flight_fields": {
+            "adep": "LUX",
+            "ades": "ICN",
+            "carrier": "CV",
+            "service_type": "F"
+        }
+    },
+    {
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "CV"
+        },
+        "flight_fields": {
+            "adep": "DWC",
+            "ades": "HKG",
+            "carrier": "CV",
+            "service_type": "F"
+        }
+    },
+    {
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "C8"
+        },
+        "flight_fields": {
+            "ades": "ICN",
+            "carrier": "C8",
+            "service_type": "F"
+        }
+    },
+    {
+        "description": "JNB-NBO on C8",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "C8"
+        },
+        "flight_fields": {
+            "adep": "JNB",
+            "ades": "NBO"
+        }
+    },
+    {
+        "description": "NLU-GDL not on C8",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "CV"
+        },
+        "flight_fields": {
+            "adep": "NLU",
+            "ades": "GDL",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "LUX-MXP C8",
+        "type": "cost",
+        "aircraft_fields": {
+            "owner": "C8",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "LUX",
+            "ades": "MXP",
+            "carrier": "C8",
+            "service_type": "F",
+            "cost": -10000
+        }
+    },
+    {
+        "description": "MXP-DWC C8 on C8",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "C8",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "DWC",
+            "ades": "HKG",
+            "carrier": "C8"
+        }
+    },
+    {
+        "description": "C8 flight on C8 AC to China",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "C8"
+        },
+        "flight_fields": {
+            "ades_country": "CN",
+            "carrier": "C8"
+        }
+    },
+    {
+        "description": "C8 flight on C8 AC to Japan",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "C8"
+        },
+        "flight_fields": {
+            "ades_country": "JP",
+            "carrier": "C8"
+        }
+    },
+    {
+        "description": "CV flight on CV AC to China",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "CV"
+        },
+        "flight_fields": {
+            "ades_country": "CN",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV flight on CV AC to Japan",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "CV"
+        },
+        "flight_fields": {
+            "ades_country": "JP",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "HKG ASB CHARTER",
+        "type": "cost",
+        "aircraft_fields": {
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "HKG",
+            "ades": "ASB",
+            "carrier": "CV",
+            "service_type": "H",
+            "cost": -50000
+        }
+    },
+    {
+        "description": "HKG ASB EXTRA",
+        "type": "cost",
+        "aircraft_fields": {
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "HKG",
+            "ades": "ASB",
+            "carrier": "CV",
+            "service_type": "A",
+            "cost": -50000
+        }
+    },
+    {
+        "description": "CV LUX-IND",
+        "type": "forbidden",
+        "aircraft_fields": {
+            "type": "74N"
+        },
+        "flight_fields": {
+            "adep": "LUX",
+            "ades": "IND",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV DMM-HKG",
+        "type": "required",
+        "aircraft_fields": {
+            "type": "74N"
+        },
+        "flight_fields": {
+            "adep": "DMM",
+            "ades": "HKG",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV SIN-KUL",
+        "type": "required",
+        "aircraft_fields": {
+            "type": "74N"
+        },
+        "flight_fields": {
+            "adep": "SIN",
+            "ades": "KUL",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV TPE",
+        "type": "required",
+        "aircraft_fields": {
+            "type": "74N"
+        },
+        "flight_fields": {
+            "ades": "TPE",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV HSV",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "LUX",
+            "ades": "HSV",
+            "carrier": "CV",
+            "service_type": "H"
+        }
+    },
+    {
+        "description": "CV JFK IND",
+        "type": "cost",
+        "aircraft_fields": {
+            "owner": "C8"
+        },
+        "flight_fields": {
+            "adep": "JFK",
+            "ades": "IND",
+            "carrier": "CV",
+            "cost": -10000
+        }
+    },
+    {
+        "description": "CV JFK ATL",
+        "type": "cost",
+        "aircraft_fields": {
+            "owner": "C8"
+        },
+        "flight_fields": {
+            "adep": "JFK",
+            "ades": "ATL",
+            "carrier": "CV",
+            "cost": -10000
+        }
+    },
+    {
+        "description": "CV JFK ATL",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "C8",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "JFK",
+            "ades": "ATL",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV LAX SEA",
+        "type": "forbidden",
+        "aircraft_fields": {
+            "owner": "C8"
+        },
+        "flight_fields": {
+            "adep": "LAX",
+            "ades": "SEA",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV VCP ON ERF",
+        "type": "cost",
+        "aircraft_fields": {
+            "ac_id": "LX-JCV",
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "VCP",
+            "carrier": "CV",
+            "cost": -30000
+        }
+    },
+    {
+        "description": "CV VCP ON ERF",
+        "type": "cost",
+        "aircraft_fields": {
+            "ac_id": "LX-ECV",
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "VCP",
+            "carrier": "CV",
+            "cost": -30000
+        }
+    },
+    {
+        "description": "CV VCP ON ERF",
+        "type": "cost",
+        "aircraft_fields": {
+            "ac_id": "LX-NCL",
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "VCP",
+            "carrier": "CV",
+            "cost": -30000
+        }
+    },
+    {
+        "description": "CV VCP ON ERF",
+        "type": "cost",
+        "aircraft_fields": {
+            "ac_id": "LX-LCL",
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "VCP",
+            "carrier": "CV",
+            "cost": -30000
+        }
+    },
+    {
+        "description": "CV VCP ON ERF",
+        "type": "cost",
+        "aircraft_fields": {
+            "ac_id": "LX-MCL",
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "VCP",
+            "carrier": "CV",
+            "cost": -30000
+        }
+    },
+    {
+        "description": "CV VCP ON ERF",
+        "type": "cost",
+        "aircraft_fields": {
+            "ac_id": "LX-KCL",
+            "owner": "CV",
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "VCP",
+            "carrier": "CV",
+            "cost": -30000
+        }
+    },
+    {
+        "description": "CV ORD ATL",
+        "type": "required",
+        "aircraft_fields": {
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "ORD",
+            "ades": "ATL",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV LUX JFK",
+        "type": "required",
+        "aircraft_fields": {
+            "type": "74Y"
+        },
+        "flight_fields": {
+            "adep": "LUX",
+            "ades": "JFK",
+            "carrier": "CV"
+        }
+    },
+    {
+        "description": "CV PEK",
+        "type": "required",
+        "aircraft_fields": {
+            "owner": "CV",
+            "type": "74N"
+        },
+        "flight_fields": {
+            "adep": "LUX",
+            "ades": "PEK",
+            "carrier": "CV"
+        }
+    }
+]

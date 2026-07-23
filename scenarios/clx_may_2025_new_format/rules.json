@@ -1,0 +1,869 @@
+[
+    {
+        "id": "1",
+        "description": "1",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "service_type",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "F"
+            },
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "LUX"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "ICN"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "2",
+        "description": "2",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "service_type",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "F"
+            },
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "DWC"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "HKG"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "3",
+        "description": "3",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "C8",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "C8"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "service_type",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "F"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "ICN"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "4",
+        "description": "JNB-NBO on C8",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "C8",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "C8"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "NBO"
+            },
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "JNB"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "5",
+        "description": "NLU-GDL not on C8",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "GDL"
+            },
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "NLU"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "6",
+        "description": "LUX-MXP C8",
+        "penalty": "-10000",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "C8",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "C8"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "service_type",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "F"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "MXP"
+            },
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "LUX"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "7",
+        "description": "MXP-DWC C8 on C8",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "C8",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "C8"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "HKG"
+            },
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "DWC"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "8",
+        "description": "C8 flight on C8 AC to China",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "C8",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "C8"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "ades_country",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CN"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "9",
+        "description": "C8 flight on C8 AC to Japan",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "C8",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "C8"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "ades_country",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "JP"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "10",
+        "description": "CV flight on CV AC to China",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "ades_country",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CN"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "11",
+        "description": "CV flight on CV AC to Japan",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "ades_country",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "JP"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "12",
+        "description": "HKG ASB CHARTER",
+        "penalty": "-50000",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "HKG"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "ASB"
+            },
+            {
+                "activity_property": "service_type",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "H"
+            }
+        ],
+        "resource_conditions": [
+            {
+                "resource_property": "type",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "74Y"
+            }
+        ]
+    },
+    {
+        "id": "13",
+        "description": "HKG ASB EXTRA",
+        "penalty": "-50000",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "HKG"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "ASB"
+            },
+            {
+                "activity_property": "service_type",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "H"
+            }
+        ],
+        "resource_conditions": [
+            {
+                "resource_property": "type",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "74Y"
+            }
+        ]
+    },
+    {
+        "id": "14",
+        "description": "CV LUX-IND",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "type",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "74N"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "LUX"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "IND"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "15",
+        "description": "CV DMM-HKG",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "type",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "74N"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "DMM"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "HKG"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "16",
+        "description": "CV SIN-KUL",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "type",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "74N"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "SIN"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "KUL"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "17",
+        "description": "CV TPE",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "type",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "74N"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "TPE"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "18",
+        "description": "CV HSV",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "LUX"
+            },
+            {
+                "activity_property": "service_type",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "H"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "HSV"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "19",
+        "description": "CV JFK IND",
+        "penalty": "-10000",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "C8"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "JFK"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "IND"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "20",
+        "description": "CV JFK ATL",
+        "penalty": "-10000",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "C8"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "JFK"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "ATL"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "21",
+        "description": "CV JFK ATL",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "C8",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "JFK"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "ATL"
+            }
+        ],
+        "resource_conditions": [
+            {
+                "resource_property": "type",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "74Y"
+            }
+        ]
+    },
+    {
+        "id": "22",
+        "description": "CV LAX SEA",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "C8",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "LAX"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "SEA"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "23",
+        "description": "CV VCP ON ERF",
+        "penalty": "-30000",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "LAX"
+            }
+        ],
+        "resource_conditions": [
+            {
+                "resource_property": "regno",
+                "resource_operator": "regex",
+                "resource_reference_value_str": "(LX-JCV|LX-ECV|LX-NCL|LX-LCL|LX-MCL|LX-KCL)"
+            },
+            {
+                "resource_property": "type",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "74Y"
+            }
+        ]
+    },
+    {
+        "id": "24",
+        "description": "CV ORD ATL",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "type",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "74Y"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "ORD"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "ATL"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "25",
+        "description": "CV LUX JFK",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "type",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "74Y"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "LUX"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "JFK"
+            }
+        ],
+        "resource_conditions": []
+    },
+    {
+        "id": "26",
+        "description": "CV PEK",
+        "penalty": "inf",
+        "valid_from": "2020-10-10T00:00:00",
+        "valid_to": null,
+        "relational_conditions": [
+            {
+                "type": "relational",
+                "activity_property": "owner",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "CV",
+                "activity_resource_relation": "both_true",
+                "resource_property": "owner",
+                "resource_operator": "not_equals",
+                "resource_reference_value_str": "CV"
+            }
+        ],
+        "activity_conditions": [
+            {
+                "activity_property": "adep",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "LUX"
+            },
+            {
+                "activity_property": "ades",
+                "activity_operator": "equals",
+                "activity_reference_value_str": "PEK"
+            }
+        ],
+        "resource_conditions": [
+            {
+                "resource_property": "type",
+                "resource_operator": "equals",
+                "resource_reference_value_str": "74N"
+            }
+        ]
+    }
+]

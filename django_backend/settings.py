@@ -25,7 +25,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # backend/optimizer exchange data through S3 instead of a shared filesystem
 # (see resopt-optimizer's config.py S3_BUCKET / aws.py) — see CLAUDE.md.
 OUTPUT_DIR = Path(os.getenv('OPT_OUTPUT_DIR', BASE_DIR / '..' / 'tmp' / 'output')).resolve()
-SCENARIOS_DIR = Path(os.getenv('OPT_SCENARIOS_DIR', BASE_DIR / '..' / 'scenarios')).resolve()
+# Benchmark scenarios (real-world data + reference assignments, dev-facing
+# only) are checked into this repo, not shared with the optimizer over a
+# filesystem path - benchmarking reuses the normal send-to-optimizer
+# S3/SQS flow instead. See CLAUDE.md.
+SCENARIOS_DIR = Path(os.getenv('OPT_SCENARIOS_DIR', BASE_DIR / 'scenarios')).resolve()
 PROTECTED_FILES_ROOT = (BASE_DIR / 'protected_files').resolve()
 PROJECT_NAME = os.path.basename(BASE_DIR)
 print(f"Project name: {PROJECT_NAME}")

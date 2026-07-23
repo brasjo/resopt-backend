@@ -1,0 +1,12 @@
+[
+    {
+        "id": "LX-WCV",
+        "regno": "LX-WCV",
+        "type": "74Y",
+        "service_start": "1986-01-01T00:00:00",
+        "service_end": "2050-01-01T00:00:00",
+        "burn_bias": 1.02,
+        "available_from": "2025-05-01T10:20:00",
+        "last_known_station": "LUX"
+    }
+]

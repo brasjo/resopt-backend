@@ -1,0 +1,22 @@
+{
+    "resources_file": "/Users/chris/ResOpt/scenarios/clx_may_2025/resources.json",
+    "activites_file": "/Users/chris/ResOpt/scenarios/clx_may_2025/activities.json",
+    "maintenances_file": "/Users/chris/ResOpt/scenarios/clx_may_2025/maintenances.json",
+    "period_start": "2025-04-21 00:00:00",
+    "period_end": "2025-06-09 23:59:00",
+    "generations": {
+        "gen0": [
+            "gen0_sol0.json"
+        ],
+        "gen1": [
+            "gen1_sol0.json"
+        ]
+    },
+    "solutions": [
+        "gen0_sol0.json",
+        "gen1_sol0.json"
+    ],
+    "mean_fitness": [],
+    "std_deviation": [],
+    "best_fitness": []
+}
