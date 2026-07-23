@@ -5,17 +5,23 @@ name: Notify resopt-main
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      # Temporarily verbose (no -s/-f, explicit status code) to see the
+      # actual GitHub API response instead of guessing why the dispatch
+      # isn't triggering resopt-main - revert to quiet -sf once diagnosed.
       - name: Fire module-updated repository_dispatch on resopt-main
         env:
           TOKEN: ${{ secrets.RESOPT_MAIN_DISPATCH_TOKEN }}
         run: |
-          curl -sf -X POST \
+          echo "Token length: ${#TOKEN}"
+          curl -X POST \
             -H "Authorization: Bearer ${TOKEN}" \
             -H "Accept: application/vnd.github+json" \
+            -w "\nHTTP status: %{http_code}\n" \
             https://api.github.com/repos/brasjo/resopt-main/dispatches \
             -d "{\"event_type\":\"module-updated\",\"client_payload\":{\"repository\":\"${GITHUB_REPOSITORY}\",\"sha\":\"${GITHUB_SHA}\"}}"
