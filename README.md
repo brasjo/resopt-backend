@@ -3,6 +3,11 @@ This is the backend of the project, built using Django. It serves as the API for
 
 ## Run
 
+Copy `.env.template` to `.env` and fill in real values. `check_env.sh` warns
+(doesn't block) if `.env` is missing or missing values it declares - run
+manually any time with `./check_env.sh`, or automatically whenever
+`resopt-main`'s `update.sh` clones/pulls this repo.
+
 Install the required packages:
 ```bash
 pip install -r requirements.txt
