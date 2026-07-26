@@ -235,15 +235,37 @@ function getBackendUrl() {
 }
 
 async function _populateDirectories(select, dirs) {
+  _allDirectories = dirs;
+  _renderDirectoryOptions(select);
+}
+
+// Pure function of (_allDirectories, the filter input's current value) - always
+// re-derives the option list from that state, regardless of what triggered the
+// re-render (new data from the backend, or the user typing a filter), so the
+// two can never drift out of sync with each other. Filtering is strict: only
+// matching directories are shown, even if one happens to be the current
+// selection - a filter that quietly keeps a non-matching item visible isn't
+// actually filtering.
+function _renderDirectoryOptions(select) {
+  const filterEl = document.getElementById("dir-filter");
   const current = select.value;
+  const query = (filterEl ? filterEl.value : "").trim().toLowerCase();
+  const filtered = query
+    ? _allDirectories.filter(dir => dir.toLowerCase().includes(query))
+    : _allDirectories;
+
   select.innerHTML = '<option value="">-- select --</option>';
-  dirs.forEach(dir => {
+  filtered.forEach(dir => {
     const opt = document.createElement("option");
     opt.value = dir;
     opt.textContent = dir;
     select.appendChild(opt);
   });
-  if (current) select.value = current;
+  if (current && filtered.includes(current)) select.value = current;
+}
+
+function filterDirectoryOptions() {
+  _renderDirectoryOptions(document.getElementById("dir-select"));
 }
 
 async function fetchDirectories() {
@@ -304,7 +326,9 @@ async function loadBackendDirectory(dir) {
     currentDir = dir;
     solutionBaseUrl = `${base}/`;
     SOLUTION_FILES = summary.solutions ?? [];
+    currentRunSummary = summary;
     userInput = input;
+    refreshFitnessChartButton();
     const params = new URLSearchParams({ dir });
     const backendUrl = getBackendUrl();
     if (backendUrl !== "") params.set("url", backendUrl);
@@ -585,6 +609,8 @@ async function _pollLive() {
     });
     const knownSet = new Set(SOLUTION_FILES);
     const newFiles = (summary.solutions ?? []).filter(f => !knownSet.has(f));
+    currentRunSummary = summary;
+    refreshFitnessChartButton();
     if (newFiles.length) _addLiveSolutions(newFiles);
   } catch (err) {
     console.warn("Live poll error:", err);
