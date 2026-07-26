@@ -69,6 +69,8 @@ OUTPUT_DIR = settings.OUTPUT_DIR
 OPTIMIZER_RESPONSE_QUEUE_URL = settings.OPTIMIZER_RESPONSE_QUEUE_URL
 OPTIMIZER_REQUEST_QUEUE_URL = settings.OPTIMIZER_REQUEST_QUEUE_URL
 SCENARIOS_DIR = settings.SCENARIOS_DIR
+OPTIMIZER_REPO_DIR = settings.OPTIMIZER_REPO_DIR
+OPTIMIZER_LOCAL_OUTPUT_DIR = settings.OPTIMIZER_LOCAL_OUTPUT_DIR
 AWS_LOCATION = settings.AWS_LOCATION
 MEDIA_ROOT = settings.MEDIA_ROOT
 INPUT_FILENAME = settings.INPUT_FILENAME
@@ -78,6 +80,7 @@ USER_INPUT_FILENAME = settings.USER_INPUT_FILENAME
 BASE_DIRS = {
     'output': OUTPUT_DIR.parent,
     'scenarios': SCENARIOS_DIR.parent,
+    'resopt-optimizer': OPTIMIZER_REPO_DIR.parent,
 }
 AVAILABLE_REPORTS = reports.AVAILABLE_REPORTS
 logger = logging.getLogger(__name__)
@@ -1152,6 +1155,13 @@ def directories_view(request):
         if not dirnames:
             relative_path = os.path.relpath(dirpath, scenarios_dir.parent)
             run_directories.append(relative_path)
+    # Add all relative directories under OPTIMIZER_LOCAL_OUTPUT_DIR, if a
+    # resopt-optimizer checkout happens to sit next to this repo
+    if OPTIMIZER_LOCAL_OUTPUT_DIR.exists():
+        for dirpath, dirnames, _filenames in os.walk(OPTIMIZER_LOCAL_OUTPUT_DIR):
+            if not dirnames:
+                relative_path = os.path.relpath(dirpath, OPTIMIZER_REPO_DIR.parent)
+                run_directories.append(relative_path)
     return JsonResponse({'run_directories': run_directories})
 
 
@@ -1186,6 +1196,13 @@ def directory_file_view(request, directory, filename):
         if not dirnames:
             relative_path = os.path.relpath(dirpath, scenarios_dir.parent)
             directories.add(str(relative_path))
+    # Add all relative directories under OPTIMIZER_LOCAL_OUTPUT_DIR, if a
+    # resopt-optimizer checkout happens to sit next to this repo
+    if OPTIMIZER_LOCAL_OUTPUT_DIR.exists():
+        for dirpath, dirnames, _filenames in os.walk(OPTIMIZER_LOCAL_OUTPUT_DIR):
+            if not dirnames:
+                relative_path = os.path.relpath(dirpath, OPTIMIZER_REPO_DIR.parent)
+                directories.add(str(relative_path))
     opt_dir = MEDIA_ROOT
     for dirpath, dirnames, _filenames in os.walk(opt_dir):
         if not dirnames:
@@ -1197,6 +1214,8 @@ def directory_file_view(request, directory, filename):
         base_dir = OUTPUT_DIR.parent
     elif directory.startswith('scenarios'):
         base_dir = SCENARIOS_DIR.parent
+    elif directory.startswith('resopt-optimizer'):
+        base_dir = OPTIMIZER_REPO_DIR.parent
     elif directory.startswith(user.username):
         base_dir = MEDIA_ROOT
     else:
@@ -1241,6 +1260,13 @@ def directory_solutions_view(request, directory):
         if not dirnames:
             relative_path = os.path.relpath(dirpath, scenario_dir.parent)
             directories.add(str(relative_path))
+    # Add all relative directories under OPTIMIZER_LOCAL_OUTPUT_DIR, if a
+    # resopt-optimizer checkout happens to sit next to this repo
+    if OPTIMIZER_LOCAL_OUTPUT_DIR.exists():
+        for dirpath, dirnames, _filenames in os.walk(OPTIMIZER_LOCAL_OUTPUT_DIR):
+            if not dirnames:
+                relative_path = os.path.relpath(dirpath, OPTIMIZER_REPO_DIR.parent)
+                directories.add(str(relative_path))
     opt_dir = MEDIA_ROOT
     for dirpath, dirnames, _filenames in os.walk(opt_dir):
         if not dirnames:
@@ -1255,6 +1281,8 @@ def directory_solutions_view(request, directory):
         base_dir = BASE_DIRS['output']
     elif directory.startswith('scenarios'):
         base_dir = BASE_DIRS['scenarios']
+    elif directory.startswith('resopt-optimizer'):
+        base_dir = BASE_DIRS['resopt-optimizer']
     elif directory.startswith(user.username):
         base_dir = MEDIA_ROOT
     else:

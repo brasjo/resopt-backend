@@ -30,6 +30,15 @@ OUTPUT_DIR = Path(os.getenv('OPT_OUTPUT_DIR', BASE_DIR / '..' / 'tmp' / 'output'
 # filesystem path - benchmarking reuses the normal send-to-optimizer
 # S3/SQS flow instead. See CLAUDE.md.
 SCENARIOS_DIR = Path(os.getenv('OPT_SCENARIOS_DIR', BASE_DIR / 'scenarios')).resolve()
+# Local dev convenience, distinct from OUTPUT_DIR above: if a resopt-optimizer
+# checkout sits next to this repo (the sibling layout resopt-main's update.sh
+# sets up), the Gantt directory browser (superuser-only, same as
+# OUTPUT_DIR/SCENARIOS_DIR - see opt/views_v1.py's directories_view) picks up
+# whatever gets manually written under its tmp/output/ live, without ever
+# creating OptimizationScenario DB rows for it. Purely additive - does not
+# change OUTPUT_DIR's own default.
+OPTIMIZER_REPO_DIR = (BASE_DIR / '..' / 'resopt-optimizer').resolve()
+OPTIMIZER_LOCAL_OUTPUT_DIR = OPTIMIZER_REPO_DIR / 'tmp' / 'output'
 PROTECTED_FILES_ROOT = (BASE_DIR / 'protected_files').resolve()
 PROJECT_NAME = os.path.basename(BASE_DIR)
 print(f"Project name: {PROJECT_NAME}")
