@@ -290,8 +290,18 @@ async function fetchDirectories() {
     const { run_directories } = await resp.json();
     const select = document.getElementById("dir-select");
     await _populateDirectories(select, run_directories);
-    const urlDir = new URLSearchParams(window.location.search).get("dir");
-    if (urlDir) {
+    // Restore whatever was loaded before navigating away: the URL's own
+    // ?dir= wins if present (e.g. a shared link, or this same tab just
+    // reloading), otherwise fall back to the last directory saved by
+    // saveGanttState() - that's what makes the previously-loaded input and
+    // solution reappear after leaving the Gantt page and coming back via a
+    // plain nav link (which carries no query string of its own). Only
+    // restore it if it's still in the current listing - a directory can
+    // get cleaned up between visits, and trying to load one that's gone
+    // would just flash an error for no reason.
+    const urlDir = new URLSearchParams(window.location.search).get("dir")
+      || loadGanttState()?.dir;
+    if (urlDir && run_directories.includes(urlDir)) {
       select.value = urlDir;
       await loadBackendDirectory(urlDir);
     }
