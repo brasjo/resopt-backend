@@ -9,6 +9,18 @@ function getRectangleAtPosition(canvas, x, y) {
   return null;
 }
 
+// Prefers placing the tooltip past (x, y) with a gap, flipping to the other
+// side of the cursor when that would overflow the right/bottom edge - but
+// the flipped position can itself overflow the left/top edge (e.g. hovering
+// near a corner), so it's re-clamped into the viewport as a final step.
+function clampTooltipPosition(x, y, tw, th, gap) {
+  let left = x + gap + tw > window.innerWidth ? x - gap - tw : x + gap;
+  let top = y + gap + th > window.innerHeight ? y - gap - th : y + gap;
+  left = Math.max(0, Math.min(left, window.innerWidth - tw));
+  top = Math.max(0, Math.min(top, window.innerHeight - th));
+  return { left, top };
+}
+
 function showTooltip(x, y, activityId) {
   const rect = rectangleMap[activityId];
 
@@ -36,8 +48,9 @@ function showTooltip(x, y, activityId) {
     tooltip.style.left = "0px";
     tooltip.style.top = "0px";
     const tw = tooltip.offsetWidth, th = tooltip.offsetHeight, gap = 12;
-    tooltip.style.left = (x + gap + tw > window.innerWidth  ? x - gap - tw : x + gap) + "px";
-    tooltip.style.top  = (y + gap + th > window.innerHeight ? y - gap - th : y + gap) + "px";
+    const { left, top } = clampTooltipPosition(x, y, tw, th, gap);
+    tooltip.style.left = left + "px";
+    tooltip.style.top = top + "px";
     return;
   }
 
@@ -54,16 +67,23 @@ function showTooltip(x, y, activityId) {
     : `${durationMin}m`;
 
   const skipInTable = new Set(["start", "end", "id"]);
-  const tableRows = Object.entries(f)
+  const tableRows = flattenObjectToRows(f)
     .filter(([k]) => !skipInTable.has(k))
+    // custom_fields are optional/situational, so push them below the rest
+    // rather than mixing them in with the flight's own fields.
+    .sort(([a], [b]) => (a.startsWith("custom_fields.") ? 1 : 0) - (b.startsWith("custom_fields.") ? 1 : 0))
     .map(([k, v]) => `<tr><td style="opacity:0.65;padding-right:10px;white-space:nowrap">${k}</td><td>${v}</td></tr>`)
     .join("");
 
   const tooltip = document.getElementById("tooltip");
   tooltip.innerHTML = `
     <div style="font-weight:bold;font-size:15px;margin-bottom:4px">${activity.label}</div>
-    <div style="margin-bottom:6px;opacity:0.85">${startStr} → ${endStr} UTC (${durationStr})</div>
-    <table style="border-collapse:collapse;font-size:12px">${tableRows}</table>
+    <div style="margin-bottom:6px;opacity:0.85">${durationStr} (UTC)</div>
+    <table style="border-collapse:collapse;font-size:12px">
+      <tr><td style="opacity:0.65;padding-right:10px;white-space:nowrap">start</td><td style="font-variant-numeric:tabular-nums">${startStr}</td></tr>
+      <tr><td style="opacity:0.65;padding-right:10px;white-space:nowrap">end</td><td style="font-variant-numeric:tabular-nums">${endStr}</td></tr>
+      ${tableRows}
+    </table>
   `;
   tooltip.style.display = "block";
   tooltip.style.left = "0px";
@@ -72,8 +92,7 @@ function showTooltip(x, y, activityId) {
   const tw = tooltip.offsetWidth;
   const th = tooltip.offsetHeight;
   const gap = 12;
-  const left = x + gap + tw > window.innerWidth  ? x - gap - tw : x + gap;
-  const top  = y + gap + th > window.innerHeight ? y - gap - th : y + gap;
+  const { left, top } = clampTooltipPosition(x, y, tw, th, gap);
   tooltip.style.left = left + "px";
   tooltip.style.top  = top  + "px";
 }
@@ -119,8 +138,9 @@ function showAircraftTooltip(x, y, aircraft, aircraftId) {
   tooltip.style.left = "0px";
   tooltip.style.top = "0px";
   const tw = tooltip.offsetWidth, th = tooltip.offsetHeight, gap = 12;
-  tooltip.style.left = (x + gap + tw > window.innerWidth  ? x - gap - tw : x + gap) + "px";
-  tooltip.style.top  = (y + gap + th > window.innerHeight ? y - gap - th : y + gap) + "px";
+  const { left, top } = clampTooltipPosition(x, y, tw, th, gap);
+  tooltip.style.left = left + "px";
+  tooltip.style.top = top + "px";
 }
 
 function attachLabelHover() {
@@ -267,9 +287,8 @@ function startRender() {
       restoreScrollY = parseInt(localStorage.getItem("ganttScrollY") || "0") || 0;
     } catch (_) {}
     if (!vpRestored) {
-      const container = document.getElementById("canvas-container");
-      const rawWidth = container ? (container.clientWidth || Math.max(800, window.innerWidth - 40)) : 800;
-      pixelsPerMinute = (Math.max(200, rawWidth - 20) - LABEL_WIDTH - 1) / (30 * 1440);
+      const viewportWidth = Math.max(200, window.innerWidth - PANEL_WIDTH - LABEL_WIDTH - 1);
+      pixelsPerMinute = viewportWidth / (30 * 1440);
     }
   }
 

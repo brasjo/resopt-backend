@@ -18,8 +18,13 @@ function calculateTimeBounds() {
 
 function viewportCanvasHeight() {
   const container = document.getElementById("canvas-container");
+  // topOffset already accounts for whatever's above the container (now
+  // nothing, on this standalone page) - the flat 100 subtracted here used
+  // to be a fudge factor for the nav bar/messages block this page had
+  // before it extended django_backend/base.html, and left this shorter
+  // than the actual available viewport height once that chrome was removed.
   const topOffset = container ? container.getBoundingClientRect().top + window.scrollY : 0;
-  return Math.max(rows * rowHeight, window.innerHeight - 100 - topOffset - HEADER_HEIGHT - 20);
+  return Math.max(rows * rowHeight, window.innerHeight - topOffset - HEADER_HEIGHT - 10);
 }
 
 function createViewportCanvas() {
@@ -39,9 +44,11 @@ function createViewportCanvas() {
   const existingLabel = document.getElementById("gantt-label-canvas");
   if (existingLabel) existingLabel.remove();
 
-  const rawWidth = container.clientWidth || Math.max(800, window.innerWidth - 40);
-  const width = Math.max(200, rawWidth - 20);
-  const viewportWidth = width - LABEL_WIDTH - 1;
+  // Based on window.innerWidth (stable) rather than container.clientWidth:
+  // clientWidth shrinks whenever a page-level vertical scrollbar appears -
+  // which zooming rows taller can trigger on its own - so deriving width
+  // from it made the canvas visibly narrow on vertical zoom.
+  const viewportWidth = Math.max(200, window.innerWidth - PANEL_WIDTH - LABEL_WIDTH - 1);
 
   const headerCanvas = document.createElement("canvas");
   headerCanvas.id = "gantt-header-canvas";
@@ -73,14 +80,14 @@ function createViewportCanvas() {
   canvas.height = viewportCanvasHeight();
   canvas.style.position = "absolute";
   canvas.style.left = LABEL_WIDTH + "px";
-  canvas.style.top = (10 + HEADER_HEIGHT) + "px";
+  canvas.style.top = HEADER_HEIGHT + "px";
   canvas.style.backgroundColor = "#fff";
   canvas.style.borderRadius = "0 0 5px 5px";
   canvas.style.cursor = "default";
   canvas.style.width = viewportWidth + "px";
 
   container.appendChild(canvas);
-  container.style.height = (canvas.height + HEADER_HEIGHT + 20) + "px";
+  container.style.height = (canvas.height + HEADER_HEIGHT + 10) + "px";
   canvasMap = { viewport: canvas, header: headerCanvas, labels: labelCanvas };
 
   worldWidth = totalDurationMinutes * pixelsPerMinute;
@@ -91,14 +98,12 @@ function updateCanvasSize() {
   if (!canvas) return;
 
   const container = document.getElementById("canvas-container");
-  const rawWidth = container.clientWidth || Math.max(800, window.innerWidth - 40);
-  const width = Math.max(200, rawWidth - 20);
-  const viewportWidth = width - LABEL_WIDTH - 1;
+  const viewportWidth = Math.max(200, window.innerWidth - PANEL_WIDTH - LABEL_WIDTH - 1);
   const h = viewportCanvasHeight();
 
   canvas.width = viewportWidth;
   canvas.height = h;
-  canvas.style.top = (10 + HEADER_HEIGHT) + "px";
+  canvas.style.top = HEADER_HEIGHT + "px";
   canvas.style.left = LABEL_WIDTH + "px";
   canvas.style.width = viewportWidth + "px";
 
@@ -117,7 +122,7 @@ function updateCanvasSize() {
     header.style.top = "0px";
     header.style.left = "0px";
   }
-  container.style.height = (h + HEADER_HEIGHT + 20) + "px";
+  container.style.height = (h + HEADER_HEIGHT + 10) + "px";
   clampCamera();
 }
 
@@ -521,7 +526,7 @@ function drawLabels() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const container = document.getElementById("canvas-container");
-  const ganttTop = container.getBoundingClientRect().top + 10 + HEADER_HEIGHT;
+  const ganttTop = container.getBoundingClientRect().top + HEADER_HEIGHT;
 
   const aircraftByIdMap = Object.fromEntries((userInput?.aircrafts ?? []).map(a => [String(a.id), a]));
   const rowMeta = {};
