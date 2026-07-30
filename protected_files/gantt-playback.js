@@ -159,6 +159,37 @@ async function jumpToSolution(idx) {
   render();
 }
 
+// Undoes whatever jumpToSolution()/playback last applied, back to the
+// unsolved assignment straight from the input file - the same state
+// initApp() renders on first load, but callable without reloading the
+// whole directory (there was previously no way back to it once you'd
+// clicked into any solution).
+function resetToOriginalInput() {
+  if (!userInput) return;
+
+  if (playbackRunning) {
+    playbackRunning = false;
+    playbackWanted = false;
+    clearTimeout(playbackTimer);
+    playbackTimer = null;
+    const btn = document.getElementById("playback-btn");
+    if (btn) { btn.textContent = "Start"; btn.style.background = "#3498db"; }
+  }
+  if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+  isAnimating = false;
+
+  if (_solCurrentPlayIdx >= 0) {
+    _updateSolItemStyle(_solCurrentPlayIdx, _solList[_solCurrentPlayIdx]?.state ?? "pending");
+    _solCurrentPlayIdx = -1;
+  }
+
+  activities = mapFlightDataToActivities(userInput.flights);
+  rows = Math.max(Object.keys(aircraftRowIndex).length, ...activities.map(a => a.row + 1));
+  updateCanvasSize();
+  updateKpiDisplay(null, "");
+  render();
+}
+
 function onAnimationComplete() {
   if (!playbackRunning) return;
   if (assignmentQueue.length === 0) {

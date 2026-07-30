@@ -308,8 +308,21 @@ window.addEventListener("wheel", function (event) {
     event.preventDefault();
     const minPpm = canvas ? canvas.width / (180 * 1440) : 0.02;
     const factor = Math.pow(0.998, event.deltaY);
+
+    // Keep the time under the cursor fixed on screen: world X is directly
+    // proportional to pixelsPerMinute for any given time, so convert the
+    // cursor's world position to a pixelsPerMinute-independent "minutes"
+    // offset before changing scale, then re-derive camera.x from that same
+    // offset at the new scale. Without this, zooming rescales everything
+    // from the timeline's start instead of from the cursor, and whatever
+    // you were looking at can end up scrolled out of view.
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const minutesAtCursor = (camera.x + mouseX) / pixelsPerMinute;
+
     pixelsPerMinute = Math.max(minPpm, pixelsPerMinute * factor);
     worldWidth = timeGridConfig.totalDurationMinutes * pixelsPerMinute;
+    camera.x = minutesAtCursor * pixelsPerMinute - mouseX;
     clampCamera();
   } else if (event.shiftKey) {
     event.preventDefault();
