@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     'viz',
     'params',
     'logify',
+    'docs',
 ]
 
 MIDDLEWARE = [
