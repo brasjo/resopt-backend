@@ -3,5 +3,481 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1>Welcome to Your Dashboard.</h1>
+{{ mock_minutes_chart|json_script:"minutes-chart-data" }}
+{{ user_status_breakdown|json_script:"user-status-chart-data" }}
+{{ org_status_breakdown|json_script:"org-status-chart-data" }}
+{{ user_run_trend_chart|json_script:"user-runs-chart-data" }}
+{{ org_run_trend_chart|json_script:"org-runs-chart-data" }}
+
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>Dashboard</h1>
+        <p class="dashboard-subtitle">Welcome back, {{ request.user.username }}.</p>
+        {% if switchable_users is not None %}
+        <form method="get" class="user-switcher">
+            <label for="as_user">Viewing dashboard for</label>
+            <select name="as_user" id="as_user" onchange="this.form.submit()">
+                {% for switch_user in switchable_users %}
+                <option value="{{ switch_user.id }}" {% if switch_user.id == viewing_user.id %}selected{% endif %}>
+                    {{ switch_user.username }}{% if switch_user.id == request.user.id %} (you){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+        {% if not is_self %}
+        <span class="badge-viewing">Viewing as {{ viewing_user.username }}</span>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-tile">
+            <div class="stat-tile-header">
+                <span class="stat-label">Optimizer minutes this month</span>
+                <span class="badge-preview">Preview</span>
+            </div>
+            <div class="stat-value">{{ mock_minutes_total }}<span class="stat-unit">min</span></div>
+            <p class="stat-caption">Sample data &mdash; runtime tracking isn't wired up yet.</p>
+        </div>
+        <div class="stat-tile">
+            <div class="stat-tile-header">
+                <span class="stat-label">Scenarios this month</span>
+            </div>
+            <div class="stat-value">{{ scenarios_this_month }}</div>
+            <p class="stat-caption">Optimization scenarios created since the 1st.</p>
+        </div>
+        <div class="stat-tile">
+            <div class="stat-tile-header">
+                <span class="stat-label">Parameter sets</span>
+            </div>
+            <div class="stat-value">{{ parameter_set_count }}</div>
+            <p class="stat-caption">Saved parameter sets for {% if organization %}{{ organization.name }}{% else %}the organization{% endif %}.</p>
+        </div>
+    </div>
+
+    <div class="chart-card chart-card-solo">
+        <div class="chart-card-header">
+            <div>
+                <h2>Optimizer minutes consumed</h2>
+                <p class="chart-subtitle">This month, per day</p>
+            </div>
+            <span class="badge-preview">Preview</span>
+        </div>
+        <div class="chart-canvas-wrap">
+            <canvas id="minutes-chart"></canvas>
+        </div>
+        <p class="chart-footnote">Sample data. This will show real minutes once optimizer run duration is recorded.</p>
+    </div>
+
+    <div class="scope-grid">
+        <div class="scope-section">
+            <h2 class="scope-title">{% if is_self %}You{% else %}{{ viewing_user.username }}{% endif %}</h2>
+
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <div>
+                        <h3>Run status</h3>
+                        <p class="chart-subtitle">All time</p>
+                    </div>
+                </div>
+                {% if user_status_breakdown %}
+                <div class="chart-canvas-wrap chart-canvas-donut">
+                    <canvas id="user-status-chart"></canvas>
+                </div>
+                <ul class="status-legend">
+                    {% for row in user_status_breakdown %}
+                    <li>
+                        <span class="legend-dot" style="background:{{ row.color }}"></span>
+                        <span class="legend-label">{{ row.label }}</span>
+                        <span class="legend-count">{{ row.count }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="chart-empty">No optimization runs yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <div>
+                        <h3>Optimization runs</h3>
+                        <p class="chart-subtitle">Last 30 days</p>
+                    </div>
+                </div>
+                <div class="chart-canvas-wrap">
+                    <canvas id="user-runs-chart"></canvas>
+                </div>
+                {% if not user_run_trend_total %}
+                <p class="chart-footnote">No optimization runs in the last 30 days.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="scope-section">
+            <h2 class="scope-title">Organization{% if organization %}: {{ organization.name }}{% endif %}</h2>
+
+            {% if not organization %}
+            <div class="chart-card">
+                <p class="chart-empty">You're not part of an organization yet.</p>
+            </div>
+            {% else %}
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <div>
+                        <h3>Run status</h3>
+                        <p class="chart-subtitle">All time</p>
+                    </div>
+                </div>
+                {% if org_status_breakdown %}
+                <div class="chart-canvas-wrap chart-canvas-donut">
+                    <canvas id="org-status-chart"></canvas>
+                </div>
+                <ul class="status-legend">
+                    {% for row in org_status_breakdown %}
+                    <li>
+                        <span class="legend-dot" style="background:{{ row.color }}"></span>
+                        <span class="legend-label">{{ row.label }}</span>
+                        <span class="legend-count">{{ row.count }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="chart-empty">No optimization runs yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <div>
+                        <h3>Optimization runs</h3>
+                        <p class="chart-subtitle">Last 30 days</p>
+                    </div>
+                </div>
+                <div class="chart-canvas-wrap">
+                    <canvas id="org-runs-chart"></canvas>
+                </div>
+                {% if not org_run_trend_total %}
+                <p class="chart-footnote">No optimization runs in the last 30 days.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard {
+    width: 100%;
+    max-width: 1100px;
+    padding: 40px 20px 60px;
+    box-sizing: border-box;
+    text-align: left;
+}
+.dashboard-header {
+    margin-bottom: 28px;
+}
+.dashboard-header h1 {
+    margin: 0 0 4px;
+    font-size: 26px;
+}
+.dashboard-subtitle {
+    margin: 0;
+    color: var(--color-text-light-secondary);
+}
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.stat-tile,
+.chart-card {
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    box-sizing: border-box;
+}
+.chart-card-solo {
+    margin-bottom: 24px;
+}
+.stat-tile-header,
+.chart-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+.stat-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-light-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.badge-preview,
+.badge-viewing {
+    display: inline-block;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+.badge-preview {
+    color: var(--color-text-light-secondary);
+    background-color: rgba(166, 166, 166, 0.15);
+    border: 1px solid var(--color-border);
+}
+.badge-viewing {
+    color: var(--color-primary);
+    background-color: rgba(16, 185, 129, 0.12);
+    border: 1px solid var(--color-primary);
+    margin-top: 10px;
+}
+.user-switcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+.user-switcher label {
+    display: inline;
+    font-size: var(--font-size-small);
+    color: var(--color-text-light-secondary);
+}
+.user-switcher select {
+    padding: 6px 10px;
+    font-size: var(--font-size-small);
+}
+.stat-value {
+    font-size: 32px;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    margin-top: 10px;
+}
+.stat-unit {
+    font-size: var(--font-size-medium);
+    font-weight: 400;
+    color: var(--color-text-light-secondary);
+    margin-left: 4px;
+}
+.stat-caption {
+    margin: 8px 0 0;
+    font-size: var(--font-size-small);
+    color: var(--color-text-light-secondary);
+}
+.chart-card h2 {
+    margin: 0;
+    font-size: 16px;
+}
+.chart-card h3 {
+    margin: 0;
+    font-size: var(--font-size-small);
+    color: var(--color-text-light-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+.chart-subtitle {
+    margin: 2px 0 0;
+    font-size: var(--font-size-small);
+    color: var(--color-text-light-secondary);
+}
+.chart-canvas-wrap {
+    position: relative;
+    height: 220px;
+    margin-top: 16px;
+}
+.chart-canvas-donut {
+    height: 170px;
+}
+.chart-footnote {
+    margin: 12px 0 0;
+    font-size: var(--font-size-small);
+    color: var(--color-text-light-secondary);
+}
+.chart-empty {
+    margin: 30px 0;
+    text-align: center;
+    color: var(--color-text-light-secondary);
+    font-size: var(--font-size-small);
+}
+.status-legend {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.status-legend li {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    font-size: var(--font-size-small);
+}
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.legend-label {
+    color: var(--color-text-light-primary);
+}
+.legend-count {
+    margin-left: auto;
+    color: var(--color-text-light-secondary);
+    font-variant-numeric: tabular-nums;
+}
+.scope-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.scope-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.scope-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+@media (max-width: 860px) {
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
+    .scope-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/files/graph.js" type="module"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const minutesData = JSON.parse(document.getElementById('minutes-chart-data').textContent);
+    const userStatusData = JSON.parse(document.getElementById('user-status-chart-data').textContent);
+    const orgStatusData = JSON.parse(document.getElementById('org-status-chart-data').textContent);
+    const userRunsData = JSON.parse(document.getElementById('user-runs-chart-data').textContent);
+    const orgRunsData = JSON.parse(document.getElementById('org-runs-chart-data').textContent);
+
+    const tooltipStyle = {
+        backgroundColor: '#1E1E1E',
+        titleColor: '#E5E7EB',
+        bodyColor: '#E5E7EB',
+        borderColor: '#2A2A2A',
+        borderWidth: 1,
+        padding: 10,
+        displayColors: false,
+    };
+    const mutedTick = { color: '#A6A6A6' };
+    const gridLine = { color: '#2A2A2A' };
+
+    new Chart(document.getElementById('minutes-chart'), {
+        type: 'line',
+        data: {
+            labels: minutesData.labels,
+            datasets: [{
+                data: minutesData.data,
+                borderColor: '#10B981',
+                borderWidth: 2,
+                borderDash: [6, 4],
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                fill: true,
+                tension: 0.35,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: '#10B981',
+                pointHoverBorderColor: '#111827',
+                pointHoverBorderWidth: 2,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...tooltipStyle, callbacks: { label: (ctx) => `${ctx.parsed.y} min (sample)` } },
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { ...mutedTick, maxTicksLimit: 8 } },
+                y: { beginAtZero: true, grid: gridLine, ticks: { ...mutedTick, precision: 0 } },
+            },
+        },
+    });
+
+    function makeRunsChart(canvasId, runsData) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: runsData.labels,
+                datasets: [{
+                    data: runsData.data,
+                    backgroundColor: '#3498db',
+                    borderRadius: 4,
+                    maxBarThickness: 18,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        ...tooltipStyle,
+                        callbacks: { label: (ctx) => `${ctx.parsed.y} run${ctx.parsed.y === 1 ? '' : 's'}` },
+                    },
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { ...mutedTick, maxTicksLimit: 8 } },
+                    y: { beginAtZero: true, grid: gridLine, ticks: { ...mutedTick, precision: 0, stepSize: 1 } },
+                },
+            },
+        });
+    }
+
+    function makeStatusChart(canvasId, statusData) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !statusData.length) return;
+        new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: statusData.map((row) => row.label),
+                datasets: [{
+                    data: statusData.map((row) => row.count),
+                    backgroundColor: statusData.map((row) => row.color),
+                    borderColor: '#111827',
+                    borderWidth: 2,
+                    hoverOffset: 4,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '68%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: tooltipStyle,
+                },
+            },
+        });
+    }
+
+    makeStatusChart('user-status-chart', userStatusData);
+    makeStatusChart('org-status-chart', orgStatusData);
+    makeRunsChart('user-runs-chart', userRunsData);
+    makeRunsChart('org-runs-chart', orgRunsData);
+});
+</script>
 {% endblock %}
