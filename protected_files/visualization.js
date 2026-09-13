@@ -179,11 +179,15 @@ function setCurrentSortKey(sortKey) {
 function encodePath(path) {
     return path.replace(/\//g, '-').replace(/^-+/, '');
 }
+// `path` is "run_directory/filename" and run_directory can itself contain
+// literal hyphens (e.g. an optimizer-generated timestamped directory name),
+// so it can't be round-tripped through a hyphen<->slash substitution - that
+// silently mangled any directory name with a dash in it. encodeURIComponent
+// preserves the real '/' (as %2F) unambiguously; the backend recovers the
+// directory/filename split with rpartition('/') instead of guessing at
+// which hyphen was really a separator.
 function encodeFilePath(path) {
-    let encodedPath = path.replace(/\//g, '-').replace(/^-+/, '');
-    // Step 3: Replace only the last '-' with ':'
-    encodedPath = encodedPath.replace(/-(?=[^-]*$)/, ':');
-    return encodedPath;
+    return encodeURIComponent(path);
 }
 function touches(startA, endA, startB, endB) {
     return startA < endB && endA > startB;

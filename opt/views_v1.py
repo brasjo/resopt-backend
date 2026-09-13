@@ -830,11 +830,14 @@ def compare_solution_ids(request):
         return HttpResponse('No solutions provided', status=400)
     solution_kpis_lst = []
     for solution in solutions_query.split(','):
-        try:
-            run_directory, solution_filename = solution.split(':')
-        except ValueError:
+        # solution is "run_directory/solution_filename" - split on the last
+        # '/' rather than round-tripping through a hyphen<->slash
+        # substitution, which silently mangled any run_directory containing
+        # a literal hyphen (e.g. an optimizer-generated timestamped folder
+        # name like "tmp-output-2026-05-29-13h45m28s").
+        run_directory, sep, solution_filename = solution.rpartition('/')
+        if not sep:
             return HttpResponse(f"Invalid solution identifier: {solution}", status=400)
-        run_directory = f'/{run_directory.replace('-', '/')}'  # Convert back to original format
         base_dir = None
         relative_dir = None
         run_directory_parts = run_directory.strip('/').split('/')
@@ -842,12 +845,15 @@ def compare_solution_ids(request):
             relative_dir = run_directory.lstrip('/')
             base_dir = MEDIA_ROOT
         elif request.user.is_superuser:
-            if run_directory.startswith('/scenarios/'):
-                relative_dir = run_directory.removeprefix('/scenarios/')
+            if run_directory.startswith('scenarios/'):
+                relative_dir = run_directory.removeprefix('scenarios/')
                 base_dir = SCENARIOS_DIR
-            elif run_directory.startswith('/output/'):
-                relative_dir = run_directory.removeprefix('/output/')
+            elif run_directory.startswith('output/'):
+                relative_dir = run_directory.removeprefix('output/')
                 base_dir = OUTPUT_DIR
+            elif run_directory.startswith('resopt-optimizer/'):
+                relative_dir = run_directory.removeprefix('resopt-optimizer/')
+                base_dir = OPTIMIZER_REPO_DIR
         if base_dir is None or relative_dir is None:
             return HttpResponse(f"Solution not found: {solution}", status=404)
         relative_path = f"{relative_dir}/{solution_filename}"
