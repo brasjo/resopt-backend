@@ -1,99 +1,28 @@
-from typing import Literal
+from collections import OrderedDict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Iterable, Literal
 import json
 import logging
-
-from collections import defaultdict
-from datetime import datetime, timedelta
-from typing import Any, Iterable
-
-from pydantic import BaseModel, Field, field_validator
 
 from resopt_utils.utils import (
     timedelta_to_hhmmss,
     format_number,
 )
-from resopt_utils.parser import parse_datetime, parse_timedelta
+from schemas.loader import get_kpis_class, get_solutionkpis_class, LATEST_VERSION
+from schemas.kpi.base import SolutionKPIs
 from opt.models import OutputFile
 
 
-class IntKPI(BaseModel):
-    name: str = Field(..., description="Name of the KPI")
-    value: int = Field(..., description="Value of the KPI")
-
-    def diff(self, other: 'IntKPI') -> int:
-        if self.name != other.name:
-            raise ValueError("Cannot compute difference between KPIs with different names")
-        return self.value - other.value
-
-
-class FloatKPI(BaseModel):
-    name: str = Field(..., description="Name of the KPI")
-    value: float = Field(..., description="Value of the KPI")
-
-    def diff(self, other: 'FloatKPI') -> int:
-        if self.name != other.name:
-            raise ValueError("Cannot compute difference between KPIs with different names")
-        return self.value - other.value
-
-
-class DatetimeKPI(BaseModel):
-    name: str = Field(..., description="Name of the KPI")
-    value: datetime = Field(..., description="Value of the KPI in ISO 8601 format")
-
-    def diff(self, other: 'DatetimeKPI') -> timedelta:
-        if self.name != other.name:
-            raise ValueError("Cannot compute difference between KPIs with different names")
-        return self.value - other.value
-
-    @field_validator("value", mode='before')
-    def validate_datetime(cls, v):
-        return parse_datetime(v)
-
-
-class TimedeltaKPI(BaseModel):
-    name: str = Field(..., description="Name of the KPI")
-    value: timedelta = Field(..., description="Value of the KPI in ISO 8601 duration format")
-
-    def diff(self, other: 'TimedeltaKPI') -> timedelta:
-        if self.name != other.name:
-            raise ValueError("Cannot compute difference between KPIs with different names")
-        return self.value - other.value
-
-    @field_validator("value", mode='before')
-    def validate_timedelta(cls, v):
-        return parse_timedelta(v)
-
-
-KPI = IntKPI | FloatKPI | DatetimeKPI | TimedeltaKPI
-KPIValue = int | float | str | timedelta
-
 logger = logging.getLogger(__name__)
 
-
-class KPIs(BaseModel):
-    time: datetime = Field(..., description="Timestamp of the KPI")
-    num_unassigned: int = Field(..., description="Number of unassigned activities")
-    num_assigned: int = Field(..., description="Number of assigned activities")
-    cost: int = Field(..., description="Total cost")
-    fuel_cost: int = Field(..., description="Total fuel cost")
+KPIValue = int | float | datetime | timedelta
+Classification = Literal["good", "bad", "neutral"]
 
 
-class SolutionKPIs(BaseModel):
-    solution_name: str = Field(..., description="Name of the KPI")
-    kpis: KPIs = Field(..., description="KPIs for the solution")
-
-
-def diff_values(value1: Any, value2: Any) -> Any:
-    if type(value1) != type(value2):
-        raise ValueError("Cannot compute difference between values of different types")
-    if isinstance(value1, (int, float)):
-        return value2 - value1
-    elif isinstance(value1, datetime):
-        return value2 - value1
-    elif isinstance(value1, timedelta):
-        return value2 - value1
-    else:
-        raise ValueError(f"Unsupported type for diff: type(value1={value1}) = {type(value1)}")
+# KPIsV1 (and every other version) inherits `version` from the base `KPIs`
+# model - it's schema metadata, not a KPI value, so it never becomes a row.
+NON_KPI_FIELDS = {"version"}
 
 
 def value_to_string(value: Any) -> str:
@@ -106,34 +35,141 @@ def value_to_string(value: Any) -> str:
     return str(value)
 
 
-def get_sign(value: Any) -> str:
-    if isinstance(value, (int, float)):
-        if value > 0:
-            return '+'
-        return ''
-    elif isinstance(value, timedelta):
-        seconds = value.total_seconds()
-        if seconds > 0:
-            return '+'
-        return ''
-    return ''
+@dataclass(frozen=True)
+class KpiSpec:
+    """Presentation metadata for one KPI field.
+
+    Lives here rather than in resopt-schemas because it's a backend-only
+    display concern (label, direction to color by) - the wire format
+    (KPIsV1) itself is unchanged. `more_is_good=None` marks a field as
+    non-directional (e.g. a timestamp), which excludes it from comparison
+    and coloring.
+    """
+    name: str
+    label: str
+    more_is_good: bool | None
 
 
-def kpi_table(lst: list[SolutionKPIs]) -> dict[str, dict[str, KPIValue]]:
-    table = defaultdict(dict)
-    for solution_kpi in lst:
-        sol_kpis = solution_kpi.kpis
-        for name, value in sol_kpis.model_dump().items():
-            table[name][solution_kpi.solution_name] = value
-    for name, values_dict in table.items():
-        for solution_name, value in values_dict.items():
-            values_dict[solution_name] = value_to_string(value)
-    return table
+# One entry per KPIsV1 field. A field with no entry here (e.g. a future
+# optimizer-added KPI on a newer version) falls back to a neutral,
+# non-directional spec via get_kpi_spec() rather than raising.
+KPI_SPECS: dict[str, KpiSpec] = {
+    "time": KpiSpec("time", "Time", more_is_good=None),
+    "num_unassigned": KpiSpec("num_unassigned", "Unassigned", more_is_good=False),
+    "num_assigned": KpiSpec("num_assigned", "Assigned", more_is_good=True),
+    "cost": KpiSpec("cost", "Cost", more_is_good=False),
+    "fuel_cost": KpiSpec("fuel_cost", "Fuel Cost", more_is_good=False),
+}
 
 
-def kpi_table_from_output_files(output_files: Iterable[OutputFile]) -> dict[str, dict[str, KPIValue]]:
-    solution_kpis_lst: list[SolutionKPIs] = output_files_to_solution_kpis(output_files)
-    return kpi_table(solution_kpis_lst)
+def get_kpi_spec(name: str) -> KpiSpec:
+    return KPI_SPECS.get(name, KpiSpec(name, name, more_is_good=None))
+
+
+@dataclass(frozen=True)
+class KpiCell:
+    """One table cell. Carries the server-computed absolute value/coloring,
+    plus the raw fields the client-side diff toggle
+    (opt/static/opt/js/kpis_table.js) needs to recompute a diff against a
+    solution the user clicks, without a round-trip to the server.
+    """
+    text: str
+    classification: Classification
+    raw_value: int | float | None
+    more_is_good: bool | None
+
+    @property
+    def css_class(self) -> str:
+        return f"kpi-{self.classification}"
+
+    @property
+    def raw_value_attr(self) -> str:
+        return '' if self.raw_value is None else str(self.raw_value)
+
+    @property
+    def more_is_good_attr(self) -> str:
+        if self.more_is_good is None:
+            return ''
+        return 'true' if self.more_is_good else 'false'
+
+
+@dataclass
+class KpiRow:
+    spec: KpiSpec
+    raw_values: "OrderedDict[str, KPIValue]"  # solution_name -> raw value, in solution order
+
+    @property
+    def name(self) -> str:
+        return self.spec.name
+
+    @property
+    def label(self) -> str:
+        return self.spec.label
+
+    def reference_value(self) -> KPIValue | None:
+        """The best value in this row, or None if the KPI isn't directional
+        or there's nothing to compare (fewer than two solutions)."""
+        if self.spec.more_is_good is None or len(self.raw_values) < 2:
+            return None
+        values = self.raw_values.values()
+        return max(values) if self.spec.more_is_good else min(values)
+
+    def classify(self, solution_name: str) -> Classification:
+        reference = self.reference_value()
+        if reference is None:
+            return "neutral"
+        return "good" if self.raw_values[solution_name] == reference else "bad"
+
+    def cell(self, solution_name: str) -> KpiCell:
+        value = self.raw_values[solution_name]
+        is_numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
+        return KpiCell(
+            text=value_to_string(value),
+            classification=self.classify(solution_name),
+            raw_value=value if is_numeric else None,
+            more_is_good=self.spec.more_is_good,
+        )
+
+
+@dataclass
+class KpiTable:
+    solution_names: list[str]
+    rows: list[KpiRow] = field(default_factory=list)
+
+    @classmethod
+    def from_solution_kpis(cls, solution_kpis_lst: list[SolutionKPIs]) -> "KpiTable":
+        solution_names = [sk.solution_name for sk in solution_kpis_lst]
+        field_names = [
+            name for name in (solution_kpis_lst[0].kpis.model_dump().keys() if solution_kpis_lst else [])
+            if name not in NON_KPI_FIELDS
+        ]
+        rows = []
+        for name in field_names:
+            raw_values = OrderedDict(
+                (sk.solution_name, getattr(sk.kpis, name)) for sk in solution_kpis_lst
+            )
+            rows.append(KpiRow(spec=get_kpi_spec(name), raw_values=raw_values))
+        return cls(solution_names=solution_names, rows=rows)
+
+    @classmethod
+    def from_output_files(cls, output_files: Iterable[OutputFile]) -> "KpiTable":
+        return cls.from_solution_kpis(output_files_to_solution_kpis(output_files))
+
+    def as_table_rows(self) -> list[list]:
+        return [
+            [row.label] + [row.cell(name) for name in self.solution_names]
+            for row in self.rows
+        ]
+
+
+def solution_kpis_from_json(content: dict, solution_name: str) -> SolutionKPIs:
+    version = content.get('version', LATEST_VERSION)
+    kpis_cls = get_kpis_class(version)
+    solution_kpis_cls = get_solutionkpis_class(version)
+    return solution_kpis_cls(
+        solution_name=solution_name,
+        kpis=kpis_cls(**content['kpis']),
+    )
 
 
 def output_files_to_solution_kpis(
@@ -142,85 +178,9 @@ def output_files_to_solution_kpis(
     solution_kpis_lst: list[SolutionKPIs] = []
     for output in output_files:
         logger.debug(f"output: {output}")
-        data = json.loads(output.read_content())
+        content = json.loads(output.read_content())
         file_name = output.file.name.split('/')[-1]
-        kpis = {
-            'solution_name': file_name,
-            'kpis': data['kpis'],
-        }
-        logger.debug(f"kpis: {kpis}")
-        solution_kpi = SolutionKPIs(**kpis)
+        solution_kpi = solution_kpis_from_json(content, file_name)
         solution_kpis_lst.append(solution_kpi)
         logger.debug(f"solution_kpi: {solution_kpi}")
     return solution_kpis_lst
-
-
-def diff_kpis(lst: list[SolutionKPIs]) -> dict[str, dict[str, KPIValue]]:
-    if len(lst) < 2:
-        raise ValueError("At least two SolutionKPIs are required to compute differences")
-    diffs = defaultdict(dict)
-    for solution_kpi in lst:
-        sol_kpis = solution_kpi.kpis
-        for name, value in sol_kpis.model_dump().items():
-            diffs[name][solution_kpi.solution_name] = value
-    max_values_dict = {}
-    logger.debug(f"diffs: {diffs}")
-    for name, values_dict in diffs.items():
-        max_values_dict[name] = max(values_dict.items(), key=lambda x: x[1])
-    logger.debug(f"max_values_dict: {max_values_dict}")
-    diff_dict = {}
-    for (name, values_dict), (name_solution, max_value) in zip(diffs.items(), max_values_dict.values()):
-        logger.debug(f"Computing differences for KPI '{name}' (max: {max_value})")
-        diff_dict[name] = {}
-        for solution_name, value in values_dict.items():
-            if solution_name == name_solution or value == max_value:
-                diff_dict[name][solution_name] = max_value
-                continue
-            diff_dict[name][solution_name] = diff_values(max_value, value)
-    logger.debug(f"diff_dict: {diff_dict}")
-    for name, values_dict in diff_dict.items():
-        max_value = max_values_dict[name][1]
-        for solution_name, value in values_dict.items():
-            max_value_sol_name = max_values_dict[name][0]
-            sign = ''
-            percentage_str = ''
-            if solution_name != max_value_sol_name and value != max_value:
-                sign = get_sign(value)
-                if isinstance(value, (int, float)) and max_value != 0:
-                    percentage = abs((value / max_value) * 100)
-                    percentage_str = f" ({sign}{percentage:.1f}%)"
-                elif isinstance(value, timedelta) and not isinstance(max_value, datetime) and max_value.total_seconds() != 0:
-                    percentage = abs((value.total_seconds() / max_value.total_seconds()) * 100)
-                    percentage_str = f" ({percentage:.1f}%)"
-            if percentage_str:
-                values_dict[solution_name] = sign + value_to_string(value) + percentage_str
-            else:
-                values_dict[solution_name] = sign + value_to_string(value)
-    logger.debug(f"diff_dict: {diff_dict}")
-    return diff_dict
-
-
-def diff_kpis_from_output_file(output_files: Iterable[OutputFile]) -> dict[str, dict[str, KPIValue]]:
-    solution_kpis_lst: list[SolutionKPIs] = []
-    solution_kpis_lst = output_files_to_solution_kpis(output_files)
-    return diff_kpis(solution_kpis_lst)
-
-
-if __name__ == '__main__':
-    kpi_example = SolutionKPIs('''{
-        "name": "solution_1",
-        "values": [
-            {
-                "name": "execution_time",
-                "value": "2:25"
-            },
-            {
-                "name": "cost",
-                "value": 123456
-            },
-            {
-                "name": "time",
-                "value": "2023-10-01T12:00:00Z"
-            }
-        ]
-    }''')

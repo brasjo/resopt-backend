@@ -47,6 +47,25 @@
 .kpis-table tbody tr:hover {
     background-color: #f1f5f9;
 }
+
+.kpis-table td.kpi-good {
+    color: #15803d;
+    font-weight: 600;
+}
+
+.kpis-table td.kpi-bad {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+.kpis-table td.kpi-baseline {
+    background-color: #eef2ff;
+    font-weight: 600;
+}
+
+.kpis-table td[data-solution-index] {
+    cursor: pointer;
+}
 </style>
 
 <table class="kpis-table" id="kpis-table={{ table_id }}">
@@ -62,7 +81,18 @@
         {% for kpis_row in kpis_rows %}
         <tr>
             {% for value in kpis_row %}
+            {% if value.css_class %}
+            <td
+                class="{{ value.css_class }}"
+                data-abs-text="{{ value.text }}"
+                data-abs-class="{{ value.css_class }}"
+                data-raw-value="{{ value.raw_value_attr }}"
+                data-more-is-good="{{ value.more_is_good_attr }}"
+                data-solution-index="{{ forloop.counter0|add:'-1' }}"
+            >{{ value.text }}</td>
+            {% else %}
             <td>{{ value }}</td>
+            {% endif %}
             {% endfor %}
         </tr>
         {% endfor %}
