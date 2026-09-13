@@ -285,7 +285,7 @@ function _renderDirectoryOptions(select) {
     ? _allDirectories.filter(dir => dir.toLowerCase().includes(query))
     : _allDirectories;
 
-  select.innerHTML = '<option value="">-- select --</option>';
+  select.innerHTML = '<option value="" disabled>-- select --</option>';
   filtered.forEach(dir => {
     const opt = document.createElement("option");
     opt.value = dir;
@@ -387,7 +387,7 @@ async function loadBackendDirectory(dir) {
 
 function loadBackendSelected() {
   const dir = document.getElementById("dir-select").value;
-  if (!dir) { alert("Select a backend directory first."); return; }
+  if (!dir) return; // the disabled "-- select --" placeholder can't produce a real change, but guard anyway
   loadBackendDirectory(dir);
 }
 
@@ -576,10 +576,15 @@ function loadSolutionsIntoQueue() {
 // COMPARE LINK
 // -------------------------
 
+// `path` is "run_directory/filename" and run_directory can itself contain
+// literal hyphens (e.g. an optimizer-generated timestamped directory name),
+// so it can't be round-tripped through a hyphen<->slash substitution - that
+// silently mangled any directory name with a dash in it. encodeURIComponent
+// preserves the real '/' (as %2F) unambiguously; the backend recovers the
+// directory/filename split with rpartition('/') instead of guessing at
+// which hyphen was really a separator.
 function encodeFilePath(path) {
-  let encodedPath = path.replace(/\//g, '-').replace(/^-+/, '');
-  encodedPath = encodedPath.replace(/-(?=[^-]*$)/, ':');
-  return encodedPath;
+  return encodeURIComponent(path);
 }
 
 function updateCompareLink() {
