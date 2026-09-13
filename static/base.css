@@ -140,6 +140,10 @@ legend {
     background-color: var(--color-secondary);
     color: var(--color-text-light-primary);
 }
+.btn-secondary,
+.btn-secondary * {
+    color: var(--color-text-light-primary);
+}
 input,
 select,
 textarea {

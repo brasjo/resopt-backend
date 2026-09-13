@@ -1,73 +1,96 @@
 {% load static %}
 <style>
-.kpis-table {
-    min-width: 600px;
-    border-collapse: collapse;
+.kpis-table-wrap {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
     margin: 1.5rem 0;
-    font-size: 0.95rem;
-    background-color: #fff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    border-radius: 8px;
-    overflow-x: auto;
 }
 
-.kpis-table thead {
-    background-color: #f4f6f9;
-    text-transform: uppercase;
+.kpis-table {
+    min-width: 600px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    background-color: var(--color-background-secondary);
+}
+
+.kpis-table thead th {
+    background-color: var(--color-black);
     font-weight: 600;
-    font-size: 0.85rem;
-    letter-spacing: 0.03em;
+    font-size: 0.8rem;
+    color: var(--color-text-light-secondary);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .kpis-table th,
 .kpis-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+    font-family: "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.kpis-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .kpis-table th {
-    text-align: center;
-    color: var(--color-text-dark-primary);
+    text-align: right;
 }
 
 .kpis-table td {
     text-align: right;
-    color: var(--color-text-dark-secondary);
+    color: var(--color-text-light-primary);
+}
+
+.kpis-table th:first-child,
+.kpis-table td:first-child {
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    color: var(--color-text-light-secondary);
 }
 
 .kpis-table td:first-child {
-    text-align: left;
+    color: var(--color-text-light-primary);
     font-weight: 500;
 }
 
-.kpis-table tbody tr:nth-child(even) {
-    background-color: #fafafa;
-}
-
-.kpis-table tbody tr:hover {
-    background-color: #f1f5f9;
+.kpis-table tbody tr:hover td {
+    background-color: rgba(255, 255, 255, 0.03);
 }
 
 .kpis-table td.kpi-good {
-    color: #15803d;
+    color: var(--color-green);
     font-weight: 600;
 }
 
 .kpis-table td.kpi-bad {
-    color: #b91c1c;
+    color: var(--color-red);
     font-weight: 600;
 }
 
+.kpis-table th.kpi-baseline,
 .kpis-table td.kpi-baseline {
-    background-color: #eef2ff;
+    background-color: rgba(52, 152, 219, 0.12);
+    box-shadow: inset 2px 0 0 var(--color-blue);
     font-weight: 600;
 }
 
 .kpis-table td[data-solution-index] {
     cursor: pointer;
 }
+
+.kpis-table-hint {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    color: var(--color-text-light-secondary);
+    background-color: var(--color-background-secondary);
+    border-top: 1px solid var(--color-border);
+}
 </style>
 
+<div class="kpis-table-wrap">
 <table class="kpis-table" id="kpis-table={{ table_id }}">
     <thead>
         <tr>
@@ -98,3 +121,7 @@
         {% endfor %}
     </tbody>
 </table>
+{% if output_file_names|length > 1 %}
+<div class="kpis-table-hint">Click a solution's column to compare every other solution against it.</div>
+{% endif %}
+</div>
