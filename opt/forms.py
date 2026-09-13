@@ -13,10 +13,10 @@ class OptimizationScenarioNameForm(forms.ModelForm):
         ]
         widgets = {
             'period_start': forms.DateTimeInput(
-                attrs={'type': 'datetime-local'}
+                attrs={'type': 'date'}, format='%Y-%m-%d'
             ),
             'period_end': forms.DateTimeInput(
-                attrs={'type': 'datetime-local'}
+                attrs={'type': 'date'}, format='%Y-%m-%d'
             ),
         }
 
