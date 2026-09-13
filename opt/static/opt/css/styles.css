@@ -80,6 +80,16 @@ img {
     color: var(--color-text-light-secondary);
 }
 
+.opt-header .btn-secondary {
+    background-color: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-light-primary);
+}
+.opt-header .btn-secondary:hover {
+    background-color: var(--color-background-secondary);
+    border-color: var(--color-text-light-secondary);
+}
+
 .button-group {
     display: inline-flex;
     gap: 10px;
