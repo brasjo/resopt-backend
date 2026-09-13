@@ -288,7 +288,6 @@ class OptDetailView(LoginRequiredMixin, View):
         """
         Handle POST requests to the optimization detail page.
         """
-        # Here you would handle form submission or other POST logic
         opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
         if opt_run.is_locked:
             log_error(opt_run, "Attempted to modify locked optimization run.")
@@ -298,8 +297,16 @@ class OptDetailView(LoginRequiredMixin, View):
         builder = original_builder.model_copy(deep=True)
         context = self.get_context(builder, opt_run)
 
-        params_cls = get_parameters_class(opt_run.builder_version)
-        params_form_cls = get_parameters_form_class(opt_run.builder_version)
+        self._process_opt_form(request, opt_run, context)
+        self._process_params_form(request, opt_run, builder, context)
+        self._process_min_turn_time_formset(request, opt_run, builder, context)
+        self._process_rules(request, opt_run, builder, context)
+        self._save_builder_if_changed(request, opt_run, original_builder, builder)
+
+        context['log_entries'] = logs_for_instance(opt_run)
+        return render(request, self.template_name, context)
+
+    def _process_opt_form(self, request, opt_run, context) -> None:
         opt_form = OptimizationScenarioNameForm(
             request.POST,
             instance=opt_run,
@@ -328,6 +335,9 @@ class OptDetailView(LoginRequiredMixin, View):
                     log_error(opt_run, f"Error in field '{field}': {error}")
                     messages.error(request, f"{field}: {error}")
 
+    def _process_params_form(self, request, opt_run, builder, context) -> None:
+        params_cls = get_parameters_class(opt_run.builder_version)
+        params_form_cls = get_parameters_form_class(opt_run.builder_version)
         params_form = params_form_cls(request.POST, prefix='params')
         context['params_form'] = params_form
         custom_min_turn_times = builder.parameters.custom_min_turn_times or []
@@ -341,85 +351,103 @@ class OptDetailView(LoginRequiredMixin, View):
         else:
             messages.error(request, f"Parameters form submission failed. Please correct the errors.")
 
+    def _process_min_turn_time_formset(self, request, opt_run, builder, context) -> None:
         min_turn_time_formset = KeyValueFormSet(
             request.POST,
             prefix="min_turn_time",
         )
         context['min_turn_time_formset'] = min_turn_time_formset
-        if min_turn_time_formset.is_valid():
-            logger.debug("min_turn_time_formset is valid")
-            custom_min_turn_times = []
-            has_custom_min_turn_times_errors = False
-            for form in min_turn_time_formset:
-                if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
-                    key = form.cleaned_data.get('key')
-                    value = form.cleaned_data.get('value')
-                    if key and value:
-                        try:
-                            time_delta = PositiveTimedeltaEntry(param=key, time_delta=value)
-                            custom_min_turn_times.append(time_delta)
-                        except ValidationError as e:
-                            log_error(opt_run, f"Error parsing minimum turn time '{key}': '{value}': {e}")
-                            form.add_error('value', f"Invalid time delta: {e}")
-                            has_custom_min_turn_times_errors = True
-            logger.debug(f"custom_min_turn_times: {custom_min_turn_times}")
-            if custom_min_turn_times and not has_custom_min_turn_times_errors:
-                builder.parameters.custom_min_turn_times = custom_min_turn_times
-                logger.debug("Updated builder parameters with custom_min_turn_times")
-            min_turn_time_formset = KeyValueFormSet(
-                prefix="min_turn_time",
-                initial=[
-                    {'key': time_delta.param, 'value': time_delta.to_str()}
-                        for time_delta in builder.parameters.custom_min_turn_times or []
-                ],
-            )
-            context['min_turn_time_formset'] = min_turn_time_formset
-        else:
+        if not min_turn_time_formset.is_valid():
             messages.error(request, f"Minimum turn time form submission failed. Please correct the errors.")
+            return
+        logger.debug("min_turn_time_formset is valid")
+        custom_min_turn_times = []
+        has_custom_min_turn_times_errors = False
+        for form in min_turn_time_formset:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                key = form.cleaned_data.get('key')
+                value = form.cleaned_data.get('value')
+                if key and value:
+                    try:
+                        time_delta = PositiveTimedeltaEntry(param=key, time_delta=value)
+                        custom_min_turn_times.append(time_delta)
+                    except ValidationError as e:
+                        log_error(opt_run, f"Error parsing minimum turn time '{key}': '{value}': {e}")
+                        form.add_error('value', f"Invalid time delta: {e}")
+                        has_custom_min_turn_times_errors = True
+        logger.debug(f"custom_min_turn_times: {custom_min_turn_times}")
+        if custom_min_turn_times and not has_custom_min_turn_times_errors:
+            builder.parameters.custom_min_turn_times = custom_min_turn_times
+            logger.debug("Updated builder parameters with custom_min_turn_times")
+        context['min_turn_time_formset'] = KeyValueFormSet(
+            prefix="min_turn_time",
+            initial=[
+                {'key': time_delta.param, 'value': time_delta.to_str()}
+                    for time_delta in builder.parameters.custom_min_turn_times or []
+            ],
+        )
 
+    @staticmethod
+    def _extract_conditions(formset, formset_valid: bool, condition_cls, label: str) -> list:
+        conditions = []
+        if not formset_valid:
+            return conditions
+        cleaned = []
+        for form in formset:
+            if form.cleaned_data.get("DELETE", False):
+                logger.debug(f"Skipping DELETE form in {label} conditions")
+                continue
+            if not form.cleaned_data:
+                logger.debug(f"Skipping empty form in {label} conditions")
+                continue
+            if form in formset.deleted_forms:
+                logger.debug(f"Skipping deleted form in {label} conditions")
+                continue
+            cleaned.append(form.cleaned_data)
+        logger.debug(f"{label.capitalize()} conditions cleaned data: {cleaned}")
+        for cond_data in cleaned:
+            conditions.append(condition_cls(**cond_data))
+        return conditions
+
+    def _process_rules(self, request, opt_run, builder, context) -> None:
         rule_formset = RuleFormSet(
             request.POST,
             prefix="rules",
         )
         context['rule_formset'] = rule_formset
 
-        activity_condition_formsets = [
-            ActivityConditionFormSet(
-                request.POST,
-                prefix=f"rules-{i}-activity-conditions",
-            )
-            for i in range(rule_formset.total_form_count())
+        formset_specs = [
+            ('activity', ActivityConditionFormSet, 'activity_condition_formsets'),
+            ('resource', ResourceConditionFormSet, 'resource_condition_formsets'),
+            ('relational', RelationalConditionFormSet, 'relational_condition_formsets'),
         ]
-        context['activity_condition_formsets'] = activity_condition_formsets
-        activity_condition_formsets_valid = all(fs.is_valid() for fs in activity_condition_formsets)
-        logger.debug(f"Activity condition formsets valid: {activity_condition_formsets_valid}")
-        logger.debug(f"Activity condition formsets errors: {[fs.errors for fs in activity_condition_formsets]}")
-        logger.debug(f"Activity condition formsets non form errors: {[fs.management_form.errors for fs in activity_condition_formsets]}")
+        condition_formsets = {}
+        condition_formsets_valid = {}
+        for label, formset_cls, context_key in formset_specs:
+            formsets = [
+                formset_cls(
+                    request.POST,
+                    prefix=f"rules-{i}-{label}-conditions",
+                )
+                for i in range(rule_formset.total_form_count())
+            ]
+            context[context_key] = formsets
+            valid = all(fs.is_valid() for fs in formsets)
+            condition_formsets[label] = formsets
+            condition_formsets_valid[label] = valid
+            logger.debug(f"{label.capitalize()} condition formsets valid: {valid}")
+            logger.debug(f"{label.capitalize()} condition formsets errors: {[fs.errors for fs in formsets]}")
+            logger.debug(
+                f"{label.capitalize()} condition formsets non form errors: "
+                f"{[fs.management_form.errors for fs in formsets]}"
+            )
 
-        resource_condition_formsets = [
-            ResourceConditionFormSet(
-                request.POST,
-                prefix=f"rules-{i}-resource-conditions",
-            )
-            for i in range(rule_formset.total_form_count())
-        ]
-        context['resource_condition_formsets'] = resource_condition_formsets
-        resource_condition_formsets_valid = all(fs.is_valid() for fs in resource_condition_formsets)
-        logger.debug(f"Resource condition formsets valid: {resource_condition_formsets_valid}")
-        logger.debug(f"Resource condition formsets errors: {[fs.errors for fs in resource_condition_formsets]}")
-        logger.debug(f"Resource condition formsets non form errors: {[fs.management_form.errors for fs in resource_condition_formsets]}")
-        relational_condition_formsets = [
-            RelationalConditionFormSet(
-                request.POST,
-                prefix=f"rules-{i}-relational-conditions",
-            )
-            for i in range(rule_formset.total_form_count())
-        ]
-        context['relational_condition_formsets'] = relational_condition_formsets
-        relational_condition_formsets_valid = all(fs.is_valid() for fs in relational_condition_formsets)
-        logger.debug(f"Relational condition formsets valid: {relational_condition_formsets_valid}")
-        logger.debug(f"Relational condition formsets errors: {[fs.errors for fs in relational_condition_formsets]}")
-        logger.debug(f"Relational condition formsets non form errors: {[fs.management_form.errors for fs in relational_condition_formsets]}")
+        activity_condition_formsets = condition_formsets['activity']
+        resource_condition_formsets = condition_formsets['resource']
+        relational_condition_formsets = condition_formsets['relational']
+        activity_condition_formsets_valid = condition_formsets_valid['activity']
+        resource_condition_formsets_valid = condition_formsets_valid['resource']
+        relational_condition_formsets_valid = condition_formsets_valid['relational']
 
         if rule_formset.is_valid():
             logger.debug("rule_formset is valid")
@@ -432,75 +460,24 @@ class OptDetailView(LoginRequiredMixin, View):
                     continue
                 rule_dict = deepcopy(rule_form.cleaned_data)
 
-                activity_conditions = []
-                if activity_condition_formsets_valid:
-                    activity_condition_formset = activity_condition_formsets[i]
-                    activity_conditions_cleaned = []
-                    for form in activity_condition_formset:
-                        if form.cleaned_data.get("DELETE", False):
-                            logger.debug("Skipping DELETE form in activity conditions")
-                            continue
-                        if not form.cleaned_data:
-                            logger.debug("Skipping empty form in activity conditions")
-                            continue
-                        if form in activity_condition_formset.deleted_forms:
-                            logger.debug("Skipping deleted form in activity conditions")
-                            continue
-                        activity_conditions_cleaned.append(form.cleaned_data)
-                    logger.debug(f"Activity conditions cleaned data: {activity_conditions_cleaned}")
-                    for cond_data in activity_conditions_cleaned:
-                        condition = builder.rule_cls.activity_condition_cls(
-                            **cond_data
-                        )
-                        activity_conditions.append(condition)
-
-                rule_dict["activity_conditions"] = activity_conditions
-
-                relational_conditions = []
-                if relational_condition_formsets_valid:
-                    relational_condition_formset = relational_condition_formsets[i]
-                    relational_conditions_cleaned = []
-                    for form in relational_condition_formset:
-                        if form.cleaned_data.get("DELETE", False):
-                            logger.debug("Skipping DELETE form in relational conditions")
-                            continue
-                        if not form.cleaned_data:
-                            logger.debug("Skipping empty form in relational conditions")
-                            continue
-                        if form in relational_condition_formset.deleted_forms:
-                            logger.debug("Skipping deleted form in relational conditions")
-                            continue
-                        relational_conditions_cleaned.append(form.cleaned_data)
-                    logger.debug(f"Relational conditions cleaned data: {relational_conditions_cleaned}")
-                    for cond_data in relational_conditions_cleaned:
-                        condition = builder.rule_cls.relational_condition_cls(
-                            **cond_data
-                        )
-                        relational_conditions.append(condition)
-                rule_dict["relational_conditions"] = relational_conditions
-
-                resource_conditions = []
-                if resource_condition_formsets_valid:
-                    resource_condition_formset = resource_condition_formsets[i]
-                    resource_conditions_cleaned = []
-                    for form in resource_condition_formset:
-                        if form.cleaned_data.get("DELETE", False):
-                            logger.debug("Skipping DELETE form in resource conditions")
-                            continue
-                        if not form.cleaned_data:
-                            logger.debug("Skipping empty form in resource conditions")
-                            continue
-                        if form in resource_condition_formset.deleted_forms:
-                            logger.debug("Skipping deleted form in resource conditions")
-                            continue
-                        resource_conditions_cleaned.append(form.cleaned_data)
-                    logger.debug(f"Resource conditions cleaned data: {resource_conditions_cleaned}")
-                    for cond_data in resource_conditions_cleaned:
-                        condition = builder.rule_cls.resource_condition_cls(
-                            **cond_data
-                        )
-                        resource_conditions.append(condition)
-                rule_dict["resource_conditions"] = resource_conditions
+                rule_dict["activity_conditions"] = self._extract_conditions(
+                    activity_condition_formsets[i],
+                    activity_condition_formsets_valid,
+                    builder.rule_cls.activity_condition_cls,
+                    "activity",
+                )
+                rule_dict["relational_conditions"] = self._extract_conditions(
+                    relational_condition_formsets[i],
+                    relational_condition_formsets_valid,
+                    builder.rule_cls.relational_condition_cls,
+                    "relational",
+                )
+                rule_dict["resource_conditions"] = self._extract_conditions(
+                    resource_condition_formsets[i],
+                    resource_condition_formsets_valid,
+                    builder.rule_cls.resource_condition_cls,
+                    "resource",
+                )
                 logger.debug(f"Constructed rule dict: {rule_dict}")
                 try:
                     rule = builder.rule_cls(**rule_dict)
@@ -514,9 +491,6 @@ class OptDetailView(LoginRequiredMixin, View):
                 builder.rules = rules
                 logger.debug("Updated builder rules with new rules and conditions")
             logger.debug(f"RULES: {builder.rules}")
-            # context['activity_condition_formsets'] = self.generate_activity_condition_formsets(builder)
-            # context['relational_condition_formsets'] = self.generate_relational_condition_formsets(builder)
-            # context['resource_condition_formsets'] = self.generate_resource_condition_formsets(builder)
         else:
             logger.warning("rule_formset is not valid or some relational_condition_formsets are not valid")
             logger.debug(f"request.POST: {request.POST}")
@@ -534,6 +508,11 @@ class OptDetailView(LoginRequiredMixin, View):
                     [fs.non_form_errors() for fs in relational_condition_formsets if fs.non_form_errors()]
                 }."
             log_error(opt_run, rule_error_str)
+
+        self._annotate_relational_condition_forms(builder, relational_condition_formsets)
+
+    @staticmethod
+    def _annotate_relational_condition_forms(builder, relational_condition_formsets) -> None:
         for formset in relational_condition_formsets:
             for form in formset:
                 activity_property_value = form.cleaned_data.get('activity_property')
@@ -559,18 +538,19 @@ class OptDetailView(LoginRequiredMixin, View):
                     logger.debug(f"form.resource_property_type: {form.resource_property_type}")
                     form.resource_property_type_str = data_type_str(form.resource_property_type)
 
-        if builder.model_dump() != original_builder.model_dump():
-            logger.info("Builder has changed, saving builder.")
-            opt_run.save_builder(builder)
-            diff_str = diff_repr(
-                original_builder.model_dump(),
-                builder.model_dump(),
-                exclude={'flights', 'aircrafts', 'maintenances'}
-            )
-            messages.info(request, f'Updated builder:\n{diff_str}')
-            log_info(opt_run, f"Updated input builder:\n{diff_str}")
-        context['log_entries'] = logs_for_instance(opt_run)
-        return render(request, self.template_name, context)
+    @staticmethod
+    def _save_builder_if_changed(request, opt_run, original_builder, builder) -> None:
+        if builder.model_dump() == original_builder.model_dump():
+            return
+        logger.info("Builder has changed, saving builder.")
+        opt_run.save_builder(builder)
+        diff_str = diff_repr(
+            original_builder.model_dump(),
+            builder.model_dump(),
+            exclude={'flights', 'aircrafts', 'maintenances'}
+        )
+        messages.info(request, f'Updated builder:\n{diff_str}')
+        log_info(opt_run, f"Updated input builder:\n{diff_str}")
 
 
 @login_required
