@@ -946,7 +946,7 @@ def solution_reports_old_view(request):
     report_type = request.GET.get('report_type')
     print(f"Requested report for run: {run_dir}, output: {output_filename}, format: {format_}, type: {report_type}")
     if not output_filename:
-        return HttpResponse("Invalid run directory.", status=400)
+        return HttpResponse("Invalid run directory: no output filename provided.", status=400)
     if run_dir.startswith('/scenarios/'):
         base_dir = SCENARIOS_DIR
         relative_path = f"{run_dir.removeprefix('/scenarios/')}/{output_filename}"
@@ -954,10 +954,12 @@ def solution_reports_old_view(request):
         base_dir = OUTPUT_DIR
         relative_path = f"{run_dir.removeprefix('/outputs/')}/{output_filename}"
     else:
-        return HttpResponse("Invalid run directory.", status=400)
+        return HttpResponse("Invalid run directory: unrecognized prefix.", status=400)
     if not is_safe_path(base_dir, relative_path):
+        # Same "File not found." response as a genuinely missing file below —
+        # an unsafe path shouldn't be distinguishable from a missing one to the caller.
         logger.error(f"Unsafe path detected in solution_reports_old_view: run='{run_dir}' output='{output_filename}'")
-        return HttpResponse("Invalid run directory.", status=400)
+        return HttpResponse("File not found.", status=404)
     file_path = Path(base_dir) / relative_path
     if not file_path.is_file():
         return HttpResponse("File not found.", status=404)
