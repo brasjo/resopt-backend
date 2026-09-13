@@ -36,6 +36,7 @@ urlpatterns = [
     path("viz/", include("viz.urls", namespace="viz")),
     path("opt/", include("opt.urls", namespace="opt")),
     path("params/", include("params.urls", namespace="params")),
+    path("docs/", include("docs.urls", namespace="docs")),
     path('files/<str:filename>/', protected_file, name='protected-file'),
     path('media/<path:path>', protected_media, name='protected-media')
 ]

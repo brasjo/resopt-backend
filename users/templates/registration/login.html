@@ -3,9 +3,143 @@
 {% block title %}Login{% endblock %}
 
 {% block content %}
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Login</button>
-    </form>
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <div class="auth-logo">{% include "icons/travel.svg" %}</div>
+            <h1>ResOpt</h1>
+        </div>
+        <p class="auth-subtitle">Sign in to your account</p>
+
+        {% if form.non_field_errors %}
+        <div class="auth-error">
+            {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" class="auth-form">
+            {% csrf_token %}
+            <div class="form-field">
+                <label for="{{ form.username.id_for_label }}">Username</label>
+                {{ form.username }}
+                {% for error in form.username.errors %}
+                <div class="field-error">{{ error }}</div>
+                {% endfor %}
+            </div>
+            <div class="form-field">
+                <label for="{{ form.password.id_for_label }}">Password</label>
+                {{ form.password }}
+                {% for error in form.password.errors %}
+                <div class="field-error">{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <button type="submit" class="btn auth-submit">Login</button>
+        </form>
+    </div>
+</div>
+
+<style>
+.auth-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 80vh;
+    padding: 110px 20px 40px;
+    box-sizing: border-box;
+}
+.auth-card {
+    width: 100%;
+    max-width: 380px;
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 40px 32px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    box-sizing: border-box;
+}
+.auth-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.auth-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: rgba(16, 185, 129, 0.12);
+    color: var(--color-primary);
+}
+.auth-logo svg {
+    width: 28px;
+    height: 28px;
+}
+.auth-brand h1 {
+    font-size: 22px;
+    margin: 0;
+    background: none;
+    padding: 0;
+    text-shadow: none;
+    width: auto;
+}
+.auth-subtitle {
+    text-align: center;
+    color: var(--color-text-light-secondary);
+    font-size: var(--font-size-medium);
+    margin: 6px 0 28px;
+}
+.auth-form {
+    gap: 18px;
+}
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+.form-field label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-light-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.form-field input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: var(--font-size-medium);
+    box-sizing: border-box;
+}
+.field-error {
+    color: var(--color-red);
+    font-size: var(--font-size-small);
+}
+.auth-error {
+    background-color: rgba(231, 76, 60, 0.1);
+    border: 1px solid var(--color-red);
+    color: var(--color-red);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    font-size: var(--font-size-small);
+}
+.auth-error p {
+    margin: 0;
+    color: var(--color-red);
+}
+.auth-submit {
+    align-self: center;
+    justify-content: center;
+    padding: 10px 32px;
+    font-weight: 600;
+    margin-top: 6px;
+}
+</style>
 {% endblock %}
