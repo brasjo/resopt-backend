@@ -5,6 +5,7 @@ from typing import Iterable
 import json
 import logging
 import os
+import re
 
 from django.conf import settings
 from django.contrib import messages
@@ -666,14 +667,11 @@ class OptCloneView(LoginRequiredMixin, View):
     def post(self, request, run_id):
         original_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
         original_name = original_run.name
-        new_name = original_name
-        if original_name.startswith("Clone"):
-            words = original_name.split(' ')
-            if len(words) > 2 and words[1].isdigit():
-                number = int(words[1])
-                new_words = words[:]
-                new_words[1] = str(number + 1)
-                new_name = ' '.join(new_words)
+        clone_match = re.match(r'^Clone (\d+) of (.+)$', original_name)
+        if clone_match:
+            number = int(clone_match.group(1))
+            base_name = clone_match.group(2)
+            new_name = f"Clone {number + 1} of {base_name}"
         else:
             new_name = f"Clone 1 of {original_name}"
         cloned_run = OptimizationScenario.objects.create(
@@ -708,10 +706,13 @@ class OptChooseParamSetView(LoginRequiredMixin, View):
         logger.debug(f"user org: {request.user.profile.organization}")
         param_set = get_object_or_404(ParameterSet, pk=param_set_id, organization=request.user.profile.organization)
         logger.debug(f"param_set: {param_set}")
+        if not param_set.params:
+            log_error(opt_run, f"Parameter set '{param_set.name}' has no uploaded parameters file.")
+            messages.error(request, f"Parameter set '{param_set.name}' has no uploaded parameters file.")
+            return redirect('opt:detail', run_id=run_id)
         parameters_cls = get_parameters_class(opt_run.builder_version)
-        with open(param_set.params.path) as f:
-            params_data = json.load(f)
-            params = parameters_cls(**params_data)
+        params_data = param_set.read_data()
+        params = parameters_cls(**params_data)
         params = {
             "parameters": json.loads(params.model_dump_json(indent=4))
         }
@@ -1143,7 +1144,7 @@ def deassign_all_flights_view(request, run_id):
     builder = builder_cls(**input_builder_data)
     for flight in builder.flights:
         flight.aircraft_id = None
-    opt_run.update_input_builder(builder)
+    opt_run.update_input_builder(builder.model_dump())
     log_info(opt_run, "All flights deassigned from aircraft.")
     messages.success(request, "All flights have been deassigned from aircraft.")
     return redirect('opt:detail', run_id=run_id)
