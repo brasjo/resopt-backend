@@ -12,52 +12,58 @@
 {% block nav_links %}
 {% endblock %}
 {% block content %}
-<h1>Optimization Scenario</h1>
-<div class="container">
-    <div class="button-group">
-        <form id="create-opt-form" action="{% url 'opt:home' %}" method="post">
-            {% csrf_token %}
-            <button id="create-new" type="submit" class="btn">
-                <div class="icon-container">
-                    {% include "icons/add.svg" with title="Create New" alt="Create New" %}
-                    Create New Scenario
-                </div>
-            </button>
-        </form>
-        {% if opt_run %}
-        <form id="save-opt-form" action="{% url 'opt:detail' run_id=opt_run.id %}" method="post">
-            {% csrf_token %}
-            <button type="submit" form="save-opt-form" class="btn">
-                <div class="icon-container">
-                    {% include "icons/save.svg" with title="Save" alt="Save" %}
-                    Save
-                </div>
-            </button>
-        </form>
-        <form id="clone-opt-form" action="{% url 'opt:clone' run_id=opt_run.id %}" method="post">
-            {% csrf_token %}
-            <button id="opt-clone" type="submit" class="btn">
-                <div class="icon-container">
-                    {% include "icons/file_copy.svg" with title="Clone" alt="Clone" %}
-                     Clone
-                </div>
-            </button>
-        </form>
-        <form id="delete-opt-logs-form" action="{% url 'opt:delete-logs' run_id=opt_run.id %}" method="post">
-            {% csrf_token %}
-            <button id="opt-delete-logs" type="submit" class="btn">
-                <div class="icon-container">
-                    {% include "icons/delete_history.svg" with title="Delete Logs" alt="Delete Logs" %}
-                    <span>Delete Logs</span>
-                </div>
-            </button>
-        </form>
-        {% endif %}
+<div class="opt-header">
+    <div class="opt-header-top">
+        <div class="opt-header-title">
+            <h1>{% if opt_run %}Scenario {{ opt_run.id }}{% else %}Optimization Scenario{% endif %}</h1>
+            {% if opt_run %}
+            <span class="status-pill status-{{ opt_run.status|lower }}"><span class="dot"></span>{{ opt_run.get_status_display }}</span>
+            {% endif %}
+        </div>
+        <div class="button-group">
+            <form id="create-opt-form" action="{% url 'opt:home' %}" method="post">
+                {% csrf_token %}
+                <button id="create-new" type="submit" class="btn btn-secondary">
+                    <div class="icon-container">
+                        {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+                        Create New Scenario
+                    </div>
+                </button>
+            </form>
+            {% if opt_run %}
+            <form id="save-opt-form" action="{% url 'opt:detail' run_id=opt_run.id %}" method="post">
+                {% csrf_token %}
+                <button type="submit" form="save-opt-form" class="btn btn-primary">
+                    <div class="icon-container">
+                        {% include "icons/save.svg" with title="Save" alt="Save" %}
+                        Save
+                    </div>
+                </button>
+            </form>
+            <form id="clone-opt-form" action="{% url 'opt:clone' run_id=opt_run.id %}" method="post">
+                {% csrf_token %}
+                <button id="opt-clone" type="submit" class="btn btn-secondary">
+                    <div class="icon-container">
+                        {% include "icons/file_copy.svg" with title="Clone" alt="Clone" %}
+                         Clone
+                    </div>
+                </button>
+            </form>
+            {% endif %}
+        </div>
     </div>
-    <div>
-        <p>Open Opt Run</p>
+    {% if opt_run %}
+    <div class="opt-meta-strip">
+        <span><b>{{ num_flights }}</b> flights</span>
+        <span><b>{{ num_aircrafts }}</b> aircraft</span>
+        <span><b>{{ num_maintenances }}</b> maintenance events</span>
+        <span><b>{{ num_solutions }}</b> solutions</span>
+    </div>
+    {% endif %}
+    <div class="opt-run-picker">
+        <span>Open scenario:</span>
         <select id="opt-select"></select>
-        <a href="#" id="open-opt-run-link" class="btn">Select</a>
+        <a href="#" id="open-opt-run-link" class="btn btn-secondary">Open</a>
     </div>
 </div>
 {% include "viz/dragAndDrop.html" %}
@@ -72,7 +78,6 @@
         </ul>
         <div class="tab-content-list">
             <div class="tab-content active" id="tab-scenario">
-                <h2>The input builder contains the following data:</h2>
                 <div class="flex-col gap-5">
                     <div class="keyvalue">
                         <p>Flights:</p>
@@ -86,7 +91,6 @@
                         <p>Maintenances:</p>
                         <p>{{ num_maintenances }}</p>
                     </div>
-                    <h2>Scenario Solutions</h2>
                     <div class="keyvalue">
                         <p>Solutions:</p>
                         <p>{{ num_solutions }}</p>
@@ -107,7 +111,7 @@
                     </div>
                     <div class="keyvalue">
                         <p>Status:</p>
-                        <p>{{ opt_run.status|title }}</p>
+                        <p>{{ opt_run.get_status_display }}</p>
                     </div>
                     {% csrf_token %}
                     {% include "opt/Form.html" with form=opt_form %}
@@ -119,61 +123,86 @@
             </div>
             <div class="tab-content" id="tab-actions">
                 <h2>Actions</h2>
-                <div class="flex-col gap-5">
-                    <a href="{% url 'opt:individual-validation' opt_run.id %}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/verified.svg" with title="Individual Validation" alt="Individual Validation" %}
-                            Individual Validation
-                        </div>
-                    </a>
-                    <a href="{% url 'opt:deassign-all-flights' opt_run.id %}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/arrow_or_edge.svg" with title="Deassign all Flights" alt="Deassign all Flights" %}
-                            Deassign all Flights
-                        </div>
-                    </a>
-                    <a href="{% url 'opt:delete-all-solutions' opt_run.id %}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/delete_history.svg" with title="Delete all Solutions" alt="Delete all Solutions" %}
-                            Delete all Solutions
-                        </div>
-                    </a>
-                    <a href="{% url 'opt:relational-validation' opt_run.id %}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/graph_4.svg" with title="Relational Validation" alt="Relational Validation" %}
-                            Relational Validation
-                        </div>
-                    </a>
-                    <a href="{{ opt_run.user_input.url }}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/download.svg" with title="Download User Input File" alt="Download User Input File" %}
-                            Download User Input File
-                        </div>
-                    </a>
-                    <a href="{{ opt_run.input_builder.url }}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/download.svg" with title="Download Input Builder File" alt="Download Input Builder File" %}
-                            Download Input Builder File
-                        </div>
-                    </a>
-                    <a href="{% url 'opt:generate-input-file' opt_run.id %}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/convert_to_text.svg" with title="Generate Input File" alt="Generate Input File" %}
-                            Generate Input File
-                        </div>
-                    </a>
-                    <a href="{% url 'opt:send-to-optimizer' opt_run.id %}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/azm.svg" with title="Send to Optimizer" alt="Send to Optimizer" %}
-                            Send to Optimizer
-                        </div>
-                    </a>
-                    <a href="{% url 'opt:solution-list' opt_run.id %}" class="btn btn-primary">
-                        <div class="icon-container">
-                            {% include "icons/lightbulb.svg" with title="Solutions List" alt="Solutions List" %}
-                            Solutions List
-                        </div>
-                    </a>
+
+                <div class="action-tier tier-safe">
+                    <p class="tier-label">Check &amp; inspect &mdash; safe to run anytime</p>
+                    <div class="action-list">
+                        <a href="{% url 'opt:individual-validation' opt_run.id %}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/verified.svg" with title="Individual Validation" alt="Individual Validation" %}
+                                Individual Validation
+                            </div>
+                        </a>
+                        <a href="{% url 'opt:relational-validation' opt_run.id %}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/graph_4.svg" with title="Relational Validation" alt="Relational Validation" %}
+                                Relational Validation
+                            </div>
+                        </a>
+                        <a href="{% url 'opt:solution-list' opt_run.id %}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/lightbulb.svg" with title="Solutions List" alt="Solutions List" %}
+                                Solutions List
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="action-tier tier-write">
+                    <p class="tier-label">Generate &amp; send &mdash; produces files or starts a run</p>
+                    <div class="action-list">
+                        <a href="{{ opt_run.user_input.url }}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/download.svg" with title="Download User Input File" alt="Download User Input File" %}
+                                Download User Input File
+                            </div>
+                        </a>
+                        <a href="{{ opt_run.input_builder.url }}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/download.svg" with title="Download Input Builder File" alt="Download Input Builder File" %}
+                                Download Input Builder File
+                            </div>
+                        </a>
+                        <a href="{% url 'opt:generate-input-file' opt_run.id %}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/convert_to_text.svg" with title="Generate Input File" alt="Generate Input File" %}
+                                Generate Input File
+                            </div>
+                        </a>
+                        <a href="{% url 'opt:send-to-optimizer' opt_run.id %}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/azm.svg" with title="Send to Optimizer" alt="Send to Optimizer" %}
+                                Send to Optimizer
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="action-tier tier-danger">
+                    <p class="tier-label">Destructive &mdash; cannot be undone</p>
+                    <div class="action-list">
+                        <a href="{% url 'opt:deassign-all-flights' opt_run.id %}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/arrow_or_edge.svg" with title="Deassign all Flights" alt="Deassign all Flights" %}
+                                Deassign all Flights
+                            </div>
+                        </a>
+                        <a href="{% url 'opt:delete-all-solutions' opt_run.id %}" class="btn action-item">
+                            <div class="icon-container">
+                                {% include "icons/delete_history.svg" with title="Delete all Solutions" alt="Delete all Solutions" %}
+                                Delete all Solutions
+                            </div>
+                        </a>
+                        <form id="delete-opt-logs-form" action="{% url 'opt:delete-logs' run_id=opt_run.id %}" method="post">
+                            {% csrf_token %}
+                            <button id="opt-delete-logs" type="submit" class="btn action-item">
+                                <div class="icon-container">
+                                    {% include "icons/delete_history.svg" with title="Delete Logs" alt="Delete Logs" %}
+                                    <span>Delete Logs</span>
+                                </div>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
             <div class="tab-content" id="tab-parameters">
