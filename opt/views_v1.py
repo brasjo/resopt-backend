@@ -847,11 +847,15 @@ def compare_solution_ids(request):
         return HttpResponse('No solutions provided', status=400)
     solution_kpis_lst = []
     for solution in solutions_query.split(','):
-        run_directory, solution_filename = solution.split(':')
+        try:
+            run_directory, solution_filename = solution.split(':')
+        except ValueError:
+            return HttpResponse(f"Invalid solution identifier: {solution}", status=400)
         run_directory = f'/{run_directory.replace('-', '/')}'  # Convert back to original format
         base_dir = None
         relative_dir = None
-        if run_directory.startswith(f'/{request.user.username}'):
+        run_directory_parts = run_directory.strip('/').split('/')
+        if run_directory_parts and run_directory_parts[0] == request.user.username:
             relative_dir = run_directory.lstrip('/')
             base_dir = MEDIA_ROOT
         elif request.user.is_superuser:
@@ -908,15 +912,13 @@ def report_type_and_format(string: str) -> tuple[str, str]:
     return report_type, report_format
 
 
+@login_required
 def solution_reports_view(request, run_id, output_id):
-    output_file = get_object_or_404(OutputFile, pk=output_id)
-    run = output_file.run
-    if run.user != request.user:
-        return HttpResponse("You do not have permission to view this report.", status=403)
-    opt_run = output_file.run
-    version = run.builder_version
+    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+    output_file = get_object_or_404(OutputFile, pk=output_id, run=opt_run)
+    version = opt_run.builder_version
     output_dict = json.loads(output_file.read_content())
-    builder = run.read_builder_data()
+    builder = opt_run.read_builder_data()
     if not builder.get('flights'):
         logger.error(f"No flights found in input file for optimization run ID {run_id}.")
         response = JsonResponse(output_dict, safe=False, json_dumps_params={'indent': 4})
@@ -933,21 +935,32 @@ def solution_reports_view(request, run_id, output_id):
     return response
 
 
+@login_required
 def solution_reports_old_view(request):
+    if not request.user.is_superuser:
+        return HttpResponse("You do not have permission to view this report.", status=403)
     run_dir = request.GET.get('run', '')
     run_dir = f'/{run_dir.replace("-", "/")}'  # Convert back to original format
     output_filename = request.GET.get('output')
     format_ = request.GET.get('format', 'json')
     report_type = request.GET.get('report_type')
     print(f"Requested report for run: {run_dir}, output: {output_filename}, format: {format_}, type: {report_type}")
+    if not output_filename:
+        return HttpResponse("Invalid run directory.", status=400)
     if run_dir.startswith('/scenarios/'):
-        run_dir = run_dir.replace('/scenarios', '')
-        file_path = Path(f"{SCENARIOS_DIR}{run_dir}/{output_filename}")
+        base_dir = SCENARIOS_DIR
+        relative_path = f"{run_dir.removeprefix('/scenarios/')}/{output_filename}"
     elif run_dir.startswith('/outputs/'):
-        run_dir = run_dir.replace('/outputs', '')
-        file_path = Path(f"{OUTPUT_DIR}{run_dir}/{output_filename}")
+        base_dir = OUTPUT_DIR
+        relative_path = f"{run_dir.removeprefix('/outputs/')}/{output_filename}"
     else:
         return HttpResponse("Invalid run directory.", status=400)
+    if not is_safe_path(base_dir, relative_path):
+        logger.error(f"Unsafe path detected in solution_reports_old_view: run='{run_dir}' output='{output_filename}'")
+        return HttpResponse("Invalid run directory.", status=400)
+    file_path = Path(base_dir) / relative_path
+    if not file_path.is_file():
+        return HttpResponse("File not found.", status=404)
     content = file_path.read_text()
     output_dict = json.loads(content)
     return JsonResponse(output_dict, safe=False, json_dumps_params={'indent': 4})
@@ -1007,6 +1020,13 @@ def run_summary_view(request, run_id):
 @login_required
 def files_view(request, path):
     # TODO should be removed
+    if not is_safe_path(MEDIA_ROOT, path):
+        logger.error(f"Unsafe path detected in files_view: '{path}'")
+        return HttpResponse('File not found', status=404)
+    if not request.user.is_superuser:
+        path_parts = path.strip('/').split('/')
+        if not path_parts or path_parts[0] != request.user.username:
+            return HttpResponse('File not found', status=404)
     file_path = Path(MEDIA_ROOT) / path
     if not file_path.exists() or not file_path.is_file():
         return HttpResponse('File not found', status=404)
@@ -1172,6 +1192,9 @@ def directory_file_view(request, directory, filename):
         if not opt_run:
             return HttpResponse(f"Could not find {directory}", status=400)
         output_folder = MEDIA_ROOT / directory
+        if not is_safe_path(output_folder, filename):
+            logger.error(f"Unsafe filename detected: '{filename}' in directory '{directory}'")
+            return HttpResponse('File not found', status=404)
         file_path = output_folder / filename
         if not file_path.exists() or not file_path.is_file():
             logger.error(f"File not found: {file_path}")
@@ -1210,6 +1233,9 @@ def directory_file_view(request, directory, filename):
         logger.error(f"Could not find directory: {directory}")
         return HttpResponse(f"Could not find {directory}", status=400)
     output_folder = Path(base_dir) / directory
+    if not is_safe_path(output_folder, filename):
+        logger.error(f"Unsafe filename detected: '{filename}' in directory '{directory}'")
+        return HttpResponse('File not found', status=404)
     logger.info(f"Looking for file at: {output_folder / filename}")
     file_path = output_folder / filename
     if not file_path.exists() or not file_path.is_file():
