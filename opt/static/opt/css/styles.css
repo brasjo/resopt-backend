@@ -296,6 +296,9 @@ td.key input {
 #opt-run-form .tab-content.active {
     display: block;
 }
+#opt-run-form .tab-content > h2 {
+    text-align: center;
+}
 #opt-run-form {
     width: 100%;
 }
