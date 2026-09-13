@@ -47,8 +47,12 @@ let playbackTimer = null;
 let isAnimating = false;
 let animationFrameId = null;
 
+// Directory picker state
+let _allDirectories = [];
+
 // Solution streaming state
 let SOLUTION_FILES = [];
+let currentRunSummary = null;
 let currentDir = null;
 let solutionBaseUrl = "/";
 const QUEUE_TARGET = 5;

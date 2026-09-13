@@ -26,9 +26,15 @@
       <div>
         <a id="params-link" href="{% url 'params:list' %}" title="Params"><div class="icon-container">{% include "icons/display_settings.svg" with title="Params" alt="Params" %}</div></a>
       </div>
+      <div>
+        <a href="{% url 'docs:home' %}" title="Docs"><div class="icon-container">{% include "icons/clinical_notes.svg" with title="Docs" alt="Docs" %}</div></a>
+      </div>
       {% if user.is_superuser %}
         <div>
           <a href="{% url 'admin:index' %}" title="Admin"><div class="icon-container">{% include "icons/manage_accounts.svg" with title="Admin" alt="Admin" %}</div></a>
+        </div>
+        <div>
+          <a href="{% url 'docs:internal-home' %}" title="Internal Docs"><div class="icon-container">{% include "icons/precision_manufacturing.svg" with title="Internal Docs" alt="Internal Docs" %}</div></a>
         </div>
       {% endif %}
     {% else %}

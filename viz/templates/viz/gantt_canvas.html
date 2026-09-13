@@ -6,7 +6,9 @@
   <input id="backend-base-url" type="text" placeholder="http://localhost:8000" value=""
     style="font-size:10px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box;color:#333;"
     onchange="fetchDirectories()">
-  <select id="dir-select" style="font-size:10px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box;color:#333;background:#fff;"
+  <input id="dir-filter" type="text" placeholder="Filter directories…" oninput="filterDirectoryOptions()"
+    style="font-size:10px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box;color:#333;">
+  <select id="dir-select" size="8" style="font-size:10px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;width:100%;box-sizing:border-box;color:#333;background:#fff;"
     onclick="refreshDirectories()" onchange="loadBackendSelected()">
     <option value="">-- select --</option>
   </select>
@@ -26,6 +28,9 @@
   <button onclick="resetToOriginalInput()" class="panel-btn" style="background:#95a5a6;">Reset to Original Input</button>
 
   <div id="kpi-display" style="font-size:11px;color:#555;line-height:1.55;min-height:44px;"></div>
+
+  <button id="fitness-chart-btn" class="panel-btn" onclick="openFitnessChart()" disabled
+    style="background:#2a78d6;opacity:0.4;pointer-events:none;">Fitness graph</button>
 
   <div id="playback-queue-count" style="font-size:11px;color:#888;min-height:14px;"></div>
 
@@ -85,3 +90,17 @@
 <div id="canvas-container" style="position: relative; overflow: hidden; border: 1px solid #999; padding: 10px; background: #f5f5f5; width: 100%; box-sizing: border-box;"></div>
 
 <div id="tooltip"></div>
+
+<div id="fitness-chart-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(11,11,11,0.5);align-items:center;justify-content:center;">
+  <div style="background:#fcfcfb;border-radius:8px;padding:20px 24px 24px;width:min(720px, 90vw);box-shadow:0 4px 24px rgba(0,0,0,0.25);position:relative;font-family:sans-serif;">
+    <button onclick="closeFitnessChart()" aria-label="Close" style="position:absolute;top:14px;right:14px;border:none;background:none;font-size:18px;cursor:pointer;color:#52514e;line-height:1;padding:4px;">✕</button>
+    <h3 style="margin:0 0 2px 0;font-size:15px;color:#0b0b0b;">Fitness over run</h3>
+    <div id="fitness-chart-subtitle" style="font-size:11px;color:#898781;margin-bottom:14px;"></div>
+    <div id="fitness-chart-mount"></div>
+    <div id="fitness-chart-empty" style="display:none;font-size:12px;color:#52514e;padding:24px 0;text-align:center;"></div>
+    <div id="fitness-chart-table-wrap" style="margin-top:14px;">
+      <button onclick="toggleFitnessTable()" id="fitness-table-toggle" style="font-size:11px;color:#2a78d6;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Show as table</button>
+      <div id="fitness-chart-table" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
