@@ -43,12 +43,8 @@ from schemas.optinput.base import InputBuilder
 from opt.preprocess import generate_input_file
 from logify.log import log_info, log_error, logs_for_instance
 from .kpi import (
-    diff_kpis_from_output_file,
-    kpi_table_from_output_files,
-    kpi_table,
-    SolutionKPIs,
-    KPIs,
-    diff_kpis,
+    KpiTable,
+    solution_kpis_from_json,
 )
 from .postprocess import generate_output_file
 import opt.reports as reports
@@ -766,11 +762,9 @@ class OptSolutionDetailView(LoginRequiredMixin, View):
     def get(self, request, run_id, output_id):
         opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
         output_file = get_object_or_404(OutputFile, id=output_id, run=opt_run)
-        kpis = kpi_table_from_output_files([output_file])
+        kpi_table_obj = KpiTable.from_output_files([output_file])
         output_file_names = [str(output_file)]
-        kpis_rows = [
-            [name] + list(kpis[name].values()) for name in kpis.keys()
-        ]
+        kpis_rows = kpi_table_obj.as_table_rows()
         logger.debug(f"kpis_rows: {kpis_rows}, output_file_names: {output_file_names}")
         context = {
             'output_file_ids': [output_file.id],
@@ -804,20 +798,11 @@ class OptSolutionCompareView(LoginRequiredMixin, View):
         # Query the solutions
         output_files = OutputFile.objects.filter(run_id=run_id, id__in=ids)
         output_file_names = [str(f) for f in output_files]
-        diffs = diff_kpis_from_output_file(output_files)
-        logger.debug(f"diffs: {diffs}")
-        kpis_diff_rows = [
-            [name] + list(diffs[name].values()) for name in diffs.keys()
-        ]
-        logger.debug(f"kpis_diff_rows: {kpis_diff_rows}")
-        kpis = kpi_table_from_output_files(output_files)
-        kpis_rows = [
-            [name] + list(kpis[name].values()) for name in kpis.keys()
-        ]
-        logger.debug(f"kpis_rows: {kpis_rows}, output_file_names: {output_file_names}, kpis_diff_rows: {kpis_diff_rows}")
+        kpi_table_obj = KpiTable.from_output_files(output_files)
+        kpis_rows = kpi_table_obj.as_table_rows()
+        logger.debug(f"kpis_rows: {kpis_rows}, output_file_names: {output_file_names}")
         context = {
             'output_file_names': output_file_names,
-            'kpis_diff_rows': kpis_diff_rows,
             'kpis_rows': kpis_rows,
         }
         return render(request, 'opt/solution_compare.html', context)
@@ -862,25 +847,13 @@ def compare_solution_ids(request):
             return HttpResponse(f"No KPIs found in: {relative_path}", status=400)
         folder = relative_dir.split('/')[-1]
         sol_filename = f'{folder}/{solution_filename}'
-        kpis = KPIs(**content['kpis'])
-        solution_kpis = SolutionKPIs(
-            solution_name=sol_filename,
-            kpis=kpis,
-        )
-        solution_kpis_lst.append(solution_kpis)
+        solution_kpis_lst.append(solution_kpis_from_json(content, sol_filename))
     if len(solution_kpis_lst) < 2:
         return HttpResponse("At least two solutions are required for comparison.", status=400)
-    kpi_diffs = diff_kpis(solution_kpis_lst)
-    kpi_tab = kpi_table(solution_kpis_lst)
-    kpis_diff_rows = [
-        [name] + list(kpi_diffs[name].values()) for name in kpi_diffs.keys()
-    ]
-    kpis_rows = [
-        [name] + list(kpi_tab[name].values()) for name in kpi_tab.keys()
-    ]
+    kpi_table_obj = KpiTable.from_solution_kpis(solution_kpis_lst)
+    kpis_rows = kpi_table_obj.as_table_rows()
     context = {
         'output_file_names': [sk.solution_name for sk in solution_kpis_lst],
-        'kpis_diff_rows': kpis_diff_rows,
         'kpis_rows': kpis_rows,
     }
     return render(request, 'opt/solution_compare.html', context)
@@ -1040,26 +1013,15 @@ def compare_solutions(request):
         if not content.get('kpis'):
             logger.warning(f"No KPIs found in: {output_file}")
             return HttpResponse(f"No KPIs found in: {output_file}", status=400)
-        kpis = KPIs(**content['kpis'])
-        solution_kpis = SolutionKPIs(
-            solution_name=str(output_file),
-            kpis=kpis,
-        )
+        solution_kpis = solution_kpis_from_json(content, str(output_file))
         logger.debug(f"Loaded solution KPIs: {solution_kpis.kpis}")
         solution_kpis_lst.append(solution_kpis)
     if len(solution_kpis_lst) < 2:
         return HttpResponse("At least two solutions are required for comparison.", status=400)
-    kpi_diffs = diff_kpis(solution_kpis_lst)
-    kpi_tab = kpi_table(solution_kpis_lst)
-    kpis_diff_rows = [
-        [name] + list(kpi_diffs[name].values()) for name in kpi_diffs.keys()
-    ]
-    kpis_rows = [
-        [name] + list(kpi_tab[name].values()) for name in kpi_tab.keys()
-    ]
+    kpi_table_obj = KpiTable.from_solution_kpis(solution_kpis_lst)
+    kpis_rows = kpi_table_obj.as_table_rows()
     context = {
         'output_file_names': [sk.solution_name for sk in solution_kpis_lst],
-        'kpis_diff_rows': kpis_diff_rows,
         'kpis_rows': kpis_rows,
     }
     return render(request, 'opt/solution_compare.html', context)

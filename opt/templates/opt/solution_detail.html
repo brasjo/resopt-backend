@@ -9,8 +9,9 @@
 {% endfor %}
 <h1>KPIs</h1>
 {% render_kpis_table kpis_rows output_file_names %}
-{% if output_file_ids|length > 1 %}
-    <h1>KPI Differences</h1>
-    {% render_kpis_table kpis_diff_rows output_file_names %}
-{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% load static %}
+<script src="{% static 'opt/js/kpis_table.js' %}"></script>
 {% endblock %}

@@ -5,7 +5,11 @@
 
 {% block content %}
 <h1>KPIs</h1>
+<p class="kpis-table-hint">Click a solution's column to compare every other solution against it.</p>
 {% render_kpis_table kpis_rows output_file_names %}
-<h1>KPI Differences</h1>
-{% render_kpis_table kpis_diff_rows output_file_names %}
+{% endblock %}
+
+{% block scripts %}
+{% load static %}
+<script src="{% static 'opt/js/kpis_table.js' %}"></script>
 {% endblock %}
