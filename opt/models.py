@@ -131,6 +131,9 @@ class OptimizationScenario(models.Model):
     def is_locked(self) -> bool:
         if self.user.is_superuser:
             return False
+        profile = getattr(self.user, 'profile', None)
+        if profile and profile.is_admin:
+            return False
         return self.status not in UNLOCK_SCENARIO_ON_STATUSES
 
     def save(self, *args, **kwargs):

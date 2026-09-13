@@ -700,6 +700,10 @@ class OptChooseParamSetView(LoginRequiredMixin, View):
         """
         logger.debug("OptChooseParamSetView.post called")
         opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+        if opt_run.is_locked:
+            log_error(opt_run, "Attempted to choose a parameter set for a locked optimization run.")
+            messages.error(request, "This optimization run is locked and cannot be modified.")
+            return redirect('opt:detail', run_id=run_id)
         logger.debug(f"opt_run: {opt_run}")
         logger.debug(f"user org: {request.user.profile.organization}")
         param_set = get_object_or_404(ParameterSet, pk=param_set_id, organization=request.user.profile.organization)
