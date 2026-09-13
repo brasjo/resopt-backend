@@ -24,7 +24,7 @@ class VizTestCase(TestCase):
         opt_run = OptimizationScenario.objects.create(user=self.user)
         opt_run.save()
         path = reverse('viz:upload-file')
-        path = f"{path}?opt_run_id={opt_run.id}"
+        path = f"{path}?run_id={opt_run.id}"
         print(path)
         r = self.client.post(path, {
             'file': open(TEST_DATA_DIR / 'flight_list.json', 'rb')
@@ -41,7 +41,7 @@ class VizTestCase(TestCase):
         opt_run = OptimizationScenario.objects.create(user=self.user)
         opt_run.save()
         path = reverse('viz:upload-file')
-        path = f"{path}?opt_run_id={opt_run.id}"
+        path = f"{path}?run_id={opt_run.id}"
         print(path)
         r = self.client.post(path, {
             'file': open(TEST_DATA_DIR / 'aircraft_list.json', 'rb')
@@ -59,7 +59,7 @@ class VizTestCase(TestCase):
         opt_run = OptimizationScenario.objects.create(user=self.user)
         opt_run.save()
         path = reverse('viz:upload-file')
-        path = f"{path}?opt_run_id={opt_run.id}"
+        path = f"{path}?run_id={opt_run.id}"
         print(path)
         _ = self.client.post(path, {
             'file': open(TEST_DATA_DIR / 'aircraft_list.json', 'rb')
@@ -79,7 +79,7 @@ class VizTestCase(TestCase):
         opt_run = OptimizationScenario.objects.create(user=self.user)
         opt_run.save()
         path = reverse('viz:upload-file')
-        path = f"{path}?opt_run_id={opt_run.id}"
+        path = f"{path}?run_id={opt_run.id}"
         print(path)
         _ = self.client.post(path, {
             'file': open(TEST_DATA_DIR / 'aircraft_list.json', 'rb')
