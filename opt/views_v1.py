@@ -1146,11 +1146,36 @@ def deassign_all_flights_view(request, run_id):
 def delete_all_solutions_view(request, run_id):
     opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
     num_solutions = opt_run.output_files.count()
-    opt_run.output_files.all().delete()
+    # Not opt_run.output_files.all().delete() - that's a bulk QuerySet
+    # delete, which does NOT call each OutputFile's own overridden
+    # delete() (the one that removes its file from storage) - it would
+    # silently leave every solution file orphaned. Delete each instance
+    # explicitly instead.
+    for output_file in opt_run.output_files.all():
+        output_file.delete()
     log_info(opt_run, f"Deleted all {num_solutions} solutions for this optimization run.")
     messages.success(request, f"Deleted all {num_solutions} solutions for this optimization run.")
     opt_run.run_summary_file.delete(save=False)
     return redirect('opt:detail', run_id=run_id)
+
+
+@login_required
+def delete_scenario_view(request, run_id):
+    if request.method != 'POST':
+        return HttpResponse('Invalid request method', status=405)
+    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+    # Deliberately not blocked by opt_run.is_locked (unlike editing content) -
+    # deleting the whole scenario is a different kind of action than
+    # modifying a completed run's input, and being able to delete old
+    # completed/errored runs is often the main reason to want this at all.
+    name = opt_run.name
+    logger.info("Deleting OptimizationScenario %s (%r) for user %s", run_id, name, request.user.username)
+    # OptimizationScenario.delete() (opt/models.py) is overridden to clean
+    # up its own FileFields, every OutputFile's file, and its LogEntry rows
+    # (a GenericForeignKey, so not covered by cascade) - not handled here.
+    opt_run.delete()
+    messages.success(request, f"Deleted scenario '{name}'.")
+    return redirect('opt:home')
 
 
 @login_required

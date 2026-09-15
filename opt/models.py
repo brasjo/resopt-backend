@@ -14,6 +14,7 @@ from resopt_utils.parser import parse_content, guess_content_type, DictResult
 from resopt_utils.ssim import parse_ssim_text, expand_ssim_file, ssim_date_span
 from resopt_utils.utils import check_period_span
 from schemas.loader import get_opt_input_builder_class, InputBuilder
+from logify.log import logs_for_instance
 
 
 INPUT_BUILDER_TEMPLATE_CONTENT = settings.INPUT_BUILDER_TEMPLATE_CONTENT
@@ -161,6 +162,28 @@ class OptimizationScenario(models.Model):
 
     def __str__(self):
         return f"OptimizationScenario {self.id} - Status: {self.status}"
+
+    def delete(self, *args, **kwargs):
+        # Django's cascade delete (on_delete=CASCADE on OutputFile.run) does
+        # a bulk QuerySet.delete() for the related rows, which does NOT call
+        # each instance's own overridden delete() - so OutputFile's own file
+        # cleanup (self.file.delete(save=False)) would silently be skipped
+        # and every solution file would be left orphaned in storage. Delete
+        # each one explicitly here instead of leaving it to cascade.
+        for output_file in self.output_files.all():
+            output_file.delete()
+        # This model's own FileFields aren't covered by cascade at all
+        # (they're not related objects, just fields) - nothing deletes them
+        # unless done explicitly.
+        for field_file in (self.input_builder, self.user_input, self.run_summary_file):
+            if field_file:
+                field_file.delete(save=False)
+        # LogEntry uses a GenericForeignKey (content_type + object_id), not
+        # a real FK - Django has no on_delete behavior for those at all, so
+        # without this these rows would reference a since-deleted scenario
+        # forever.
+        logs_for_instance(self).delete()
+        super().delete(*args, **kwargs)
 
     def get_period_start(self) -> datetime | None:
         if self.period_start:

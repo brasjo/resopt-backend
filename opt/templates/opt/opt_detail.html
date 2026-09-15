@@ -202,6 +202,15 @@
                                 </div>
                             </button>
                         </form>
+                        <form id="delete-scenario-form" action="{% url 'opt:delete' run_id=opt_run.id %}" method="post" onsubmit="return confirm('Delete this scenario permanently, including all its files and solutions? This cannot be undone.');">
+                            {% csrf_token %}
+                            <button id="opt-delete-scenario" type="submit" class="btn action-item">
+                                <div class="icon-container">
+                                    {% include "icons/delete.svg" with title="Delete Scenario" alt="Delete Scenario" %}
+                                    <span>Delete Scenario</span>
+                                </div>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>

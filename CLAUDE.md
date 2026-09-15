@@ -138,6 +138,34 @@ decision keys off. Tests exercising the success path need `follow=True`
 since the direct POST response is now a redirect — see
 `opt/tests/view/tests.py`'s `OptDetailViewPostTestCase`.
 
+### Deleting a scenario (`opt:delete` → `OptimizationScenario.delete()`)
+
+`OptimizationScenario.delete()` is overridden (not just a plain view-level
+`opt_run.delete()`) specifically so file/log cleanup happens no matter how
+deletion is triggered, not just from this one view:
+
+- Its own `FileField`s (`input_builder`, `user_input`, `run_summary_file`)
+  aren't related objects, just fields - nothing removes them from storage
+  unless done explicitly.
+- Each `OutputFile` is deleted **one at a time** (`for output_file in
+  self.output_files.all(): output_file.delete()`), not via a bulk
+  `self.output_files.all().delete()` - a bulk `QuerySet.delete()` does NOT
+  call each instance's own overridden `delete()` (the one that removes its
+  file from storage), so a bulk delete here would silently orphan every
+  solution file. **`delete_all_solutions_view` had exactly this bug** until
+  it was fixed alongside this feature - if you ever see `<related>.all()
+  .delete()` on a model whose `delete()` does file/storage cleanup,
+  that's the same bug.
+- `LogEntry` rows use a `GenericForeignKey` (`content_type` + `object_id`),
+  not a real FK - Django has no `on_delete` behavior for those at all, so
+  without explicit cleanup they'd reference a deleted scenario forever.
+
+`delete_scenario_view` (POST-only, ownership-checked like every other
+scenario view) deliberately does **not** check `opt_run.is_locked` -
+deleting the whole scenario is a different action than editing a
+completed run's content, and cleaning up old completed/errored runs is
+often the main reason to want this at all.
+
 - `params/` — parameter sets (turn-time rules, penalties) backed by `schemas.parameters`.
 - `forms/` — dynamic Django forms generated from `resopt-schemas` models (`forms/loader.py`, `forms/rules_matrix/`).
 - `users/`, `logify/`, `viz/`, `dashboard/` — auth, activity logging, Gantt-style visualization views, dashboard pages.
