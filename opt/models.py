@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+import shutil
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -7,6 +9,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django_backend.utils.aws import generate_presigned_url
 from django.conf import settings
 
@@ -183,6 +186,29 @@ class OptimizationScenario(models.Model):
         # without this these rows would reference a since-deleted scenario
         # forever.
         logs_for_instance(self).delete()
+        # FileField.delete() above removes each file but leaves the now-
+        # empty run_directory behind (found via real usage - deleting a
+        # scenario left an empty media/<user>/<timestamp>/ directory).
+        # Remove the whole directory tree, not just os.rmdir (which would
+        # only succeed if it's already empty and there's no guarantee every
+        # file under it was created via a tracked FileField). Local
+        # filesystem storage only - default_storage.path() raises
+        # NotImplementedError for S3, which has no real directories to
+        # clean up in the first place (deleting every object under a
+        # prefix already leaves nothing behind).
+        if self.run_directory:
+            try:
+                dir_path = default_storage.path(self.run_directory)
+            except NotImplementedError:
+                dir_path = None
+            if dir_path and os.path.isdir(dir_path):
+                try:
+                    shutil.rmtree(dir_path)
+                except OSError as e:
+                    logger.warning(
+                        "Could not remove run directory %s for deleted scenario %s: %s",
+                        dir_path, self.pk, e,
+                    )
         super().delete(*args, **kwargs)
 
     def get_period_start(self) -> datetime | None:

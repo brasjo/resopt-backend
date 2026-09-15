@@ -36,6 +36,18 @@ class TestOptimizationScenarioDelete(TestCase):
         self.assertFalse(default_storage.exists(input_builder_name))
         self.assertFalse(default_storage.exists(user_input_name))
 
+    def test_delete_removes_the_now_empty_run_directory(self):
+        import os
+        from django.core.files.storage import default_storage
+
+        run_directory = self.scenario.run_directory
+        dir_path = default_storage.path(run_directory)
+        self.assertTrue(os.path.isdir(dir_path))
+
+        self.scenario.delete()
+
+        self.assertFalse(os.path.exists(dir_path))
+
     def test_delete_removes_output_files_from_storage(self):
         output_file = OutputFile.objects.create(
             run=self.scenario,
