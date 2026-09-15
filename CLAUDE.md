@@ -5,6 +5,55 @@ Django app in the ResOpt module graph: `resopt-utils` → `resopt-schemas` → *
 ## Apps
 
 - `opt/` — optimization scenarios: submits input to the optimizer, parses/validates results (`preprocess.py`, `postprocess.py`, `validation_models*.py`, `kpi.py`).
+
+### File upload (`opt/views_v1.py:upload_file_view` → `OptimizationScenario.update_input`)
+
+A single generic `upload-file/` endpoint, no file-type picker in the UI —
+format is entirely content-sniffed server-side (`resopt_utils.parser.
+parse_content`: `guess_content_type` for JSON/CSV/SSIM, `guess_model_class`
+for which of the 6 schema classes a JSON/CSV row represents). Deliberate UX
+choice: drag-and-drop any file, backend figures out what it is.
+
+**IATA SSIM files are supported** as a third auto-detected content type,
+added with **zero changes to this repo** — `parse_content` already handled
+this generically, so extending `resopt_utils.parser` (detection + parsing)
+was the entire change. SSIM always produces `flights` only (never
+aircrafts/maintenances/etc), via `resopt_utils.ssim`'s fixed-width parsing
++ recurring-pattern expansion — see `resopt-utils/CLAUDE.md`'s `ssim.py`
+section for the full design, including a real caveat: an un-filtered
+full-season SSIM export can expand to millions of flights, well beyond a
+normal scenario's scale, and the only existing guard is the pre-parse
+`DATA_UPLOAD_MAX_MEMORY_SIZE` file-size check (bounds input bytes, not
+output flight count).
+
+**Compressed uploads (.zip/.gz) are accepted too** — `upload_file_view`
+calls `resopt_utils.utils.maybe_decompress(raw_bytes)` right after reading
+the upload, before the existing decode/`update_input` flow; detection is by
+magic bytes, not the filename. A zip must contain exactly one file (an
+error otherwise) - there's no support for "one zip, multiple data files."
+This exists mainly so a large SSIM export can travel compressed. Note the
+`DATA_UPLOAD_MAX_MEMORY_SIZE` check above it runs against the *compressed*
+size on the wire - decompressed content can be substantially larger, which
+is the whole point, but means that size check no longer bounds what
+`update_input`/`parse_content` actually has to process.
+
+This is why `maybe_decompress` enforces its own separate 500MB
+decompressed-size cap internally (streamed, not read-then-check) — a
+compressed upload well within `DATA_UPLOAD_MAX_MEMORY_SIZE` (50MB here)
+could otherwise decompress to tens of gigabytes in a single blocking call
+(DEFLATE's worst-case ratio is roughly 1032:1) and exhaust server memory —
+a real, cheaply-crafted decompression-bomb DoS, not just a theoretical
+concern. See `resopt-utils/CLAUDE.md`'s "maybe_decompress and
+decompression-bomb protection" section for the full reasoning; if this
+cap's value ever needs to change, it lives in
+`resopt_utils.utils.MAX_DECOMPRESSED_SIZE`, not here.
+
+**Replace semantics are intentional, not a bug**: `update_input_builder`
+(`opt/models.py`) replaces a top-level key wholesale (e.g. all `flights`)
+whenever the uploaded content contains that key — it never merges/appends.
+The user is expected to combine/curate their data into one file before
+uploading. Don't change this to additive/merge behavior without checking
+with the user first.
 - `params/` — parameter sets (turn-time rules, penalties) backed by `schemas.parameters`.
 - `forms/` — dynamic Django forms generated from `resopt-schemas` models (`forms/loader.py`, `forms/rules_matrix/`).
 - `users/`, `logify/`, `viz/`, `dashboard/` — auth, activity logging, Gantt-style visualization views, dashboard pages.

@@ -56,6 +56,7 @@ from resopt_utils.utils import (
     data_type_str,
     get_model_field_type,
     CustomFieldClass,
+    maybe_decompress,
 )
 
 
@@ -564,7 +565,17 @@ def upload_file_view(request):
     uploaded_file = request.FILES['file']
     if uploaded_file.size > DATA_UPLOAD_MAX_MEMORY_SIZE:
         return HttpResponse('File too large', status=400)
-    data = uploaded_file.read().decode('utf-8')
+    raw = uploaded_file.read()
+    # Detected by magic bytes, not the filename - a .zip/.gz (single file
+    # inside) lets a large upload (e.g. an SSIM export) travel compressed,
+    # staying under DATA_UPLOAD_MAX_MEMORY_SIZE on the wire. Note that size
+    # check runs above on the *compressed* size - see resopt-backend/
+    # CLAUDE.md's upload section for the tradeoff this implies.
+    try:
+        raw = maybe_decompress(raw)
+    except ValueError as e:
+        return HttpResponse(f'Could not read uploaded file: {e}', status=400)
+    data = raw.decode('utf-8')
     errors = opt_run.update_input(data)
     if errors:
         log_error(opt_run, f"Errors while uploading file '{uploaded_file.name}'")

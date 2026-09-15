@@ -235,6 +235,14 @@ class OptimizationScenario(models.Model):
         self.user_input.save(USER_INPUT_FILENAME, current_file, save=False)
 
     def update_input_builder(self, data: dict) -> None:
+        # By design: a top-level key present in `data` (e.g. "flights")
+        # REPLACES that entire list on the scenario, it doesn't merge/append
+        # into what's already there. If an uploaded file contains flights,
+        # all existing flights are gone - the user is expected to combine/
+        # curate their data into one file before uploading, not upload
+        # incremental additions across multiple files. Same for aircrafts,
+        # maintenances, etc. Don't "fix" this into a merge without checking
+        # with the user first - it's intentional.
         current_data = self.read_builder_data()
         logger.debug(f"Updating input builder with data: {data}")
         current_data.update(data)
