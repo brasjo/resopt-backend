@@ -87,10 +87,18 @@ class OptDetailViewPostTestCase(TestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_post_with_no_changes_succeeds(self):
+        # A successful save redirects (Post/Redirect/Get, so a later
+        # browser refresh does a plain GET instead of re-submitting the
+        # form) - follow=True lets us still inspect the final rendered
+        # page's context after that redirect.
         r = self.client.post(
             reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
             self.base_post_data(),
+            follow=True,
         )
+        self.assertEqual(r.redirect_chain, [
+            (reverse('opt:detail', kwargs={'run_id': self.opt_run.id}), 302),
+        ])
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.context['opt_form'].errors)
         self.assertFalse(r.context['params_form'].errors)
@@ -102,7 +110,7 @@ class OptDetailViewPostTestCase(TestCase):
             reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
             self.base_post_data(**{'opt-name': 'Renamed Scenario'}),
         )
-        self.assertEqual(r.status_code, 200)
+        self.assertRedirects(r, reverse('opt:detail', kwargs={'run_id': self.opt_run.id}))
         self.opt_run.refresh_from_db()
         self.assertEqual(self.opt_run.name, 'Renamed Scenario')
 
@@ -116,6 +124,7 @@ class OptDetailViewPostTestCase(TestCase):
         r = self.client.post(
             reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
             data,
+            follow=True,
         )
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.context['min_turn_time_formset'].errors)

@@ -83,7 +83,7 @@ SSIM_MAX_IMPORT_SPAN_DAYS = int(os.getenv('SSIM_MAX_IMPORT_SPAN_DAYS', 90))
 # A scenario's period_start/period_end can't span more than this - kept
 # deliberately small so a scenario's period plus SSIM_IMPORT_BUFFER_DAYS on
 # each side still stays comfortably under SSIM_MAX_IMPORT_SPAN_DAYS.
-SCENARIO_MAX_PERIOD_DAYS = int(os.getenv('SCENARIO_MAX_PERIOD_DAYS', 30))
+SCENARIO_MAX_PERIOD_DAYS = int(os.getenv('SCENARIO_MAX_PERIOD_DAYS', 31))
 # When scoping a large SSIM file down to a scenario's period, this many
 # days are also included on each side of that period.
 SSIM_IMPORT_BUFFER_DAYS = int(os.getenv('SSIM_IMPORT_BUFFER_DAYS', 10))

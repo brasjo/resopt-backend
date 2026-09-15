@@ -106,6 +106,38 @@ whenever the uploaded content contains that key — it never merges/appends.
 The user is expected to combine/curate their data into one file before
 uploading. Don't change this to additive/merge behavior without checking
 with the user first.
+
+### OptDetailView.post — Post/Redirect/Get on success
+
+The scenario detail page's save (Ctrl+S → `opt.js`'s `postSave()` →
+`form.submit()` on `#opt-run-form`, a plain POST to the same URL) redirects
+back to `opt:detail` on success instead of rendering the response
+directly — every *other* POST handler in `views_v1.py` already did this
+(`redirect('opt:detail', run_id=run_id)`), this view was the one
+exception. Without the redirect, refreshing the page after a save re-POSTs
+the form (the browser's "Confirm Form Resubmission" prompt) — found via
+real usage, not hypothetical.
+
+Only redirects when there are **no error-level messages** queued during
+processing — a validation failure still renders directly, so the user's
+just-typed (invalid) values stay in the bound forms instead of being
+silently discarded by a redirect-triggered GET (which would rebuild fresh,
+unbound forms from the last-saved DB state). Checked by peeking at
+`django.contrib.messages`' queued messages (`get_messages(request)`,
+`storage.used = False` after checking so they're still shown afterward)
+rather than auditing every form/formset's own `.errors` individually —
+every error path in this view already calls `messages.error(...)`
+(confirmed for the name form, params form, min-turn-time formset, rules
+formset), so this stays correct as new sections get added later without
+needing to remember to wire them into an explicit check too.
+
+If you add a new POST-handled section to this view, make sure its error
+path calls `messages.error(...)` — that's what this redirect-vs-render
+decision keys off. Tests exercising the success path need `follow=True`
+(and `assertRedirects`/`redirect_chain`, not a bare `status_code == 200`)
+since the direct POST response is now a redirect — see
+`opt/tests/view/tests.py`'s `OptDetailViewPostTestCase`.
+
 - `params/` — parameter sets (turn-time rules, penalties) backed by `schemas.parameters`.
 - `forms/` — dynamic Django forms generated from `resopt-schemas` models (`forms/loader.py`, `forms/rules_matrix/`).
 - `users/`, `logify/`, `viz/`, `dashboard/` — auth, activity logging, Gantt-style visualization views, dashboard pages.

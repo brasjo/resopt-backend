@@ -301,6 +301,27 @@ class OptDetailView(LoginRequiredMixin, View):
         self._save_builder_if_changed(request, opt_run, original_builder, builder)
 
         context['log_entries'] = logs_for_instance(opt_run)
+
+        # Post/Redirect/Get on success: redirecting means a later browser
+        # refresh does a plain GET instead of resubmitting the form (the
+        # "Confirm Form Resubmission" prompt every other POST handler in
+        # this file already avoids by redirecting unconditionally - this
+        # one is the exception because it needs to preserve the bound
+        # forms on a validation error, see below). Only redirect when
+        # there are no error messages queued above though - on a
+        # validation failure this needs to re-render this exact response
+        # so the user still sees their just-typed (invalid) values in the
+        # bound forms; redirecting there would silently discard them and
+        # force retyping. Peeking at message level without consuming them
+        # (storage.used = False) rather than auditing every form/
+        # formset's .errors individually, so this stays correct as new
+        # sections get added to this view later without anyone needing to
+        # remember to wire them into this check too.
+        storage = messages.get_messages(request)
+        has_errors = any(m.level >= messages.ERROR for m in storage)
+        storage.used = False
+        if not has_errors:
+            return redirect('opt:detail', run_id=run_id)
         return render(request, self.template_name, context)
 
     def _process_opt_form(self, request, opt_run, context) -> None:
