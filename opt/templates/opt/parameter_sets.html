@@ -6,9 +6,11 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 {% endblock %}
 {% block nav_links %}
-<button type="submit" form="parameter-form">
-    {% include "icons/save.svg" with title="Save" alt="Save" %}
-    Save
+<button type="submit" form="parameter-form" class="btn">
+    <div class="icon-container">
+        {% include "icons/save.svg" with title="Save" alt="Save" %}
+        Save
+    </div>
 </button>
 {% endblock %}
 

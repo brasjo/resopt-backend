@@ -17,9 +17,11 @@
     <div class="button-group">
         <form id="create-opt-form" action="{% url 'opt:home' %}" method="post">
             {% csrf_token %}
-            <button id="create-new" type="submit">
-                {% include "icons/add.svg" with title="Create New" alt="Create New" %}
-                Create New
+            <button id="create-new" type="submit" class="btn">
+                <div class="icon-container">
+                    {% include "icons/add.svg" with title="Create New" alt="Create New" %}
+                    Create New
+                </div>
             </button>
         </form>
     </div>
