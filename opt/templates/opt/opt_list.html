@@ -18,7 +18,7 @@
         <form id="create-opt-form" action="{% url 'opt:home' %}" method="post">
             {% csrf_token %}
             <button id="create-new" type="submit">
-                <img src="{% static 'icons/add.svg' %}" alt="Create New" class="icon">
+                {% include "icons/add.svg" with title="Create New" alt="Create New" %}
                 Create New
             </button>
         </form>

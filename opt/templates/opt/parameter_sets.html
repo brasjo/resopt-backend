@@ -7,7 +7,7 @@
 {% endblock %}
 {% block nav_links %}
 <button type="submit" form="parameter-form">
-    <img src="{% static 'icons/save.svg' %}" alt="Save" class="icon">
+    {% include "icons/save.svg" with title="Save" alt="Save" %}
     Save
 </button>
 {% endblock %}
