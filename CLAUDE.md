@@ -14,17 +14,69 @@ parse_content`: `guess_content_type` for JSON/CSV/SSIM, `guess_model_class`
 for which of the 6 schema classes a JSON/CSV row represents). Deliberate UX
 choice: drag-and-drop any file, backend figures out what it is.
 
-**IATA SSIM files are supported** as a third auto-detected content type,
-added with **zero changes to this repo** — `parse_content` already handled
-this generically, so extending `resopt_utils.parser` (detection + parsing)
-was the entire change. SSIM always produces `flights` only (never
-aircrafts/maintenances/etc), via `resopt_utils.ssim`'s fixed-width parsing
-+ recurring-pattern expansion — see `resopt-utils/CLAUDE.md`'s `ssim.py`
-section for the full design, including a real caveat: an un-filtered
-full-season SSIM export can expand to millions of flights, well beyond a
-normal scenario's scale, and the only existing guard is the pre-parse
-`DATA_UPLOAD_MAX_MEMORY_SIZE` file-size check (bounds input bytes, not
-output flight count).
+**On a rejected upload, the actual reason is logged in three places**, not
+just one: `messages.error(request, error)` per error (only rendered on the
+*next* full page load, not the AJAX response itself - confusing during
+testing, since the browser's own alert only ever shows the generic "Errors
+occurred during file upload"), `log_error(opt_run, error)` per error (DB-
+backed, `logify` app, viewable via that scenario's activity log), and now
+also `logger.warning(...)` (plain `logging` module, `opt.views_v1` logger -
+configured in `settings.py`'s `LOGGING['loggers']['opt']` at DEBUG with
+both console and file handlers) so the real reason shows up immediately in
+the server console/`resopt-main/logs/run.log`, without needing to open the
+scenario's activity log or refresh the page.
+
+**IATA SSIM files are supported** as a third auto-detected content type.
+Detection (`guess_content_type`) and generic parsing live in
+`resopt_utils.parser`/`resopt_utils.ssim`, but SSIM upload actually needed
+one change here too — see "SSIM import scoping" below — because a
+full-season SSIM export can expand to millions of flights (confirmed: the
+real AA fixture's un-truncated original, ~310k Type 3 records spanning 393
+days, expands to ~2.6M flights), far beyond a normal scenario's scale.
+
+### SSIM import scoping
+
+`OptimizationScenario.parse_content` (`opt/models.py`) special-cases SSIM
+content (detected via `guess_content_type`) before falling through to the
+generic path, via `_parse_ssim_upload`:
+
+1. `resopt_utils.ssim.ssim_date_span` gets the file's total date range
+   **without expanding anything** (cheap).
+2. If that span is within `SSIM_MAX_IMPORT_SPAN_DAYS` (`settings.py`,
+   default 90 days / ~3 months): expand and import the whole file, same as
+   any other format.
+3. If it's larger: the scenario's own period (`get_period_start()`/
+   `get_period_end()` - Django field if set, else `meta.period_start/end`
+   from the stored input builder) is required to scope the import down.
+   **Not set → the upload is rejected** with an error telling the user to
+   set the period first (via the existing `messages.error`/HTTP 400 path
+   upload errors already use) - this deliberately doesn't try to guess a
+   sensible default slice; the user is expected to know what period their
+   scenario needs, same philosophy as the wholesale-replace behavior
+   below.
+4. The scenario's own period is also checked against
+   `SCENARIO_MAX_PERIOD_DAYS` (default 30 days / ~1 month) via
+   `resopt_utils.utils.check_period_span` - rejected if the period itself
+   is too long. This is deliberately small relative to
+   `SSIM_MAX_IMPORT_SPAN_DAYS`, so a valid period plus the buffer below
+   still comfortably fits under the import-span cap.
+5. If the period passes both checks, the import is scoped to
+   `[period_start - SSIM_IMPORT_BUFFER_DAYS, period_end +
+   SSIM_IMPORT_BUFFER_DAYS]` (default buffer: 10 days each side) via
+   `expand_ssim_file`'s `window` parameter - which clips *during*
+   expansion, not by filtering a fully-expanded list, so the cost stays
+   proportional to what's kept, not to the whole file.
+
+All three thresholds are plain `settings.py` values (env-var overridable,
+matching `DATA_UPLOAD_MAX_MEMORY_SIZE`'s existing convention) - **not**
+`constance` or any other DB-backed config, a deliberate choice: nothing
+else in this codebase uses `constance`, and `resopt-schemas`/`resopt-utils`
+have to stay importable without Django on the path at all, so a threshold
+sourced from Django-only config could never reach a validator living in
+those packages anyway. `check_period_span`/`ssim_date_span`/`expand_leg`'s
+`window` are the reusable, framework-agnostic mechanism (in
+`resopt-utils`); the actual numbers and the policy of when to apply them
+live here.
 
 **Compressed uploads (.zip/.gz) are accepted too** — `upload_file_view`
 calls `resopt_utils.utils.maybe_decompress(raw_bytes)` right after reading

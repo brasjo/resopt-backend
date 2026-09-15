@@ -74,6 +74,20 @@ STORAGE = os.getenv('STORAGE', 'local')  # 'local' or 's3'
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
 
+# SSIM upload scoping - see opt/models.py's OptimizationScenario._parse_ssim_upload
+# and CLAUDE.md's "SSIM import scoping" section for the full behavior.
+# A file spanning more than this many days can't be imported wholesale -
+# the scenario's own period (see SCENARIO_MAX_PERIOD_DAYS) is required to
+# scope it down instead.
+SSIM_MAX_IMPORT_SPAN_DAYS = int(os.getenv('SSIM_MAX_IMPORT_SPAN_DAYS', 90))
+# A scenario's period_start/period_end can't span more than this - kept
+# deliberately small so a scenario's period plus SSIM_IMPORT_BUFFER_DAYS on
+# each side still stays comfortably under SSIM_MAX_IMPORT_SPAN_DAYS.
+SCENARIO_MAX_PERIOD_DAYS = int(os.getenv('SCENARIO_MAX_PERIOD_DAYS', 30))
+# When scoping a large SSIM file down to a scenario's period, this many
+# days are also included on each side of that period.
+SSIM_IMPORT_BUFFER_DAYS = int(os.getenv('SSIM_IMPORT_BUFFER_DAYS', 10))
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 

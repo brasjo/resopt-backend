@@ -582,6 +582,18 @@ def upload_file_view(request):
         for error in errors:
             log_error(opt_run, error)
             messages.error(request, error)
+        # log_error above only writes to the DB-backed per-scenario activity
+        # log (logify) - not visible in the server console/log file unless
+        # someone opens that scenario's log view. Also log here via the
+        # plain logging module so the actual reason shows up in the console
+        # output immediately, not just as a generic 400 - this was
+        # confusing during testing (the browser only shows "Errors occurred
+        # during file upload", the real message only appeared in Django's
+        # messages framework after a page refresh).
+        logger.warning(
+            "Upload rejected for scenario %s (user=%s, file=%s): %s",
+            opt_run.id, user.username, uploaded_file.name, "; ".join(errors),
+        )
         return HttpResponse('Errors occurred during file upload', status=400)
     log_info(opt_run, f"File '{uploaded_file.name}' uploaded and processed successfully.")
     return HttpResponse('ok')

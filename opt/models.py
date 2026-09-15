@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.db import models
 from django.contrib.auth import get_user_model
@@ -10,7 +10,9 @@ from django.core.files.base import ContentFile
 from django_backend.utils.aws import generate_presigned_url
 from django.conf import settings
 
-from resopt_utils.parser import parse_content, DictResult
+from resopt_utils.parser import parse_content, guess_content_type, DictResult
+from resopt_utils.ssim import parse_ssim_text, expand_ssim_file, ssim_date_span
+from resopt_utils.utils import check_period_span
 from schemas.loader import get_opt_input_builder_class, InputBuilder
 
 
@@ -21,6 +23,9 @@ AWS_LOCATION = settings.AWS_LOCATION
 AWS_PRESIGNED_URL_EXPIRATION = settings.AWS_PRESIGNED_URL_EXPIRATION
 RUN_SUMMARY_FILENAME = settings.RUN_SUMMARY_FILENAME
 UNLOCK_SCENARIO_ON_STATUSES = set(('pending',))
+SSIM_MAX_IMPORT_SPAN_DAYS = settings.SSIM_MAX_IMPORT_SPAN_DAYS
+SCENARIO_MAX_PERIOD_DAYS = settings.SCENARIO_MAX_PERIOD_DAYS
+SSIM_IMPORT_BUFFER_DAYS = settings.SSIM_IMPORT_BUFFER_DAYS
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -215,7 +220,57 @@ class OptimizationScenario(models.Model):
             json.dump(data, f, indent=4)
 
     def parse_content(self, content: str) -> DictResult | None:
+        if guess_content_type(content) == 'ssim':
+            return self._parse_ssim_upload(content)
         return parse_content(content, self.builder_cls.model_classes())
+
+    def _parse_ssim_upload(self, content: str) -> DictResult:
+        """SSIM-specific: a large file can't be imported wholesale (see
+        SSIM_MAX_IMPORT_SPAN_DAYS/CLAUDE.md's "SSIM import scoping"
+        section) - it's the user's responsibility to scope the data down
+        to something reasonable, by setting this scenario's period first,
+        not this method's job to guess a sensible slice.
+        """
+        ssim_file = parse_ssim_text(content)
+        span = ssim_date_span(ssim_file)
+        if span is None:
+            return DictResult(errors=["SSIM file contained no flight legs to import"])
+        span_start, span_end = span
+        span_days = (span_end - span_start).days
+
+        if span_days <= SSIM_MAX_IMPORT_SPAN_DAYS:
+            flights = list(expand_ssim_file(ssim_file))
+            if not flights:
+                return DictResult(errors=["SSIM file contained no flight legs to import"])
+            return DictResult(items={'flights': flights})
+
+        period_start = self.get_period_start()
+        period_end = self.get_period_end()
+        if not period_start or not period_end:
+            return DictResult(errors=[
+                f"SSIM file spans {span_days} days ({span_start} to {span_end}), "
+                f"which exceeds the {SSIM_MAX_IMPORT_SPAN_DAYS}-day import limit. "
+                "Set this scenario's period start/end first, then re-upload - "
+                f"only flights within that period (plus a {SSIM_IMPORT_BUFFER_DAYS}-day "
+                "buffer on each side) will be imported."
+            ])
+
+        period_error = check_period_span(
+            period_start, period_end, SCENARIO_MAX_PERIOD_DAYS, label="Scenario period",
+        )
+        if period_error:
+            return DictResult(errors=[period_error])
+
+        buffer = timedelta(days=SSIM_IMPORT_BUFFER_DAYS)
+        window = ((period_start - buffer).date(), (period_end + buffer).date())
+        flights = list(expand_ssim_file(ssim_file, window=window))
+        if not flights:
+            return DictResult(errors=[
+                f"SSIM file spans {span_days} days but none of it falls within "
+                f"this scenario's period ({period_start} to {period_end}, plus a "
+                f"{SSIM_IMPORT_BUFFER_DAYS}-day buffer on each side)."
+            ])
+        return DictResult(items={'flights': flights})
 
     def update_input(self, content: str) -> list[str]:
         result = self.parse_content(content)
