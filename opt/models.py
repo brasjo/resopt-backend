@@ -70,6 +70,7 @@ class OptimizationScenario(models.Model):
     COMPLETED = 'completed'
     TIMEOUT = 'timeout'
     ERROR = 'error'
+    STOPPED = 'stopped'
 
     V1 = 'v1'
 
@@ -85,6 +86,7 @@ class OptimizationScenario(models.Model):
         (TIMEOUT, 'Timeout'),
         (COMPLETED, 'Completed'),
         (ERROR, 'Error'),
+        (STOPPED, 'Stopped'),
     ]
     builder_version = models.CharField(
         max_length=3,
@@ -392,3 +394,67 @@ class OutputFile(models.Model):
         return presigned_url_with_aws_location(
             self.file.name,
         )
+
+
+class OptimizationRun(models.Model):
+    """
+    One row per optimizer subprocess launch (i.e. per job_id), not per
+    scenario - a scenario can be resubmitted multiple times (see
+    send_to_optimizer_view). This is the source of truth for run
+    wall-clock time, to be summed later for org billing minutes.
+
+    started_at/ended_at bound only the time the optimizer subprocess was
+    actually running - not SQS queue-wait or S3 download/setup time. That
+    window is what billing should ultimately meter, so it's tracked
+    separately from queued_at.
+    """
+    QUEUED = 'queued'
+    RUNNING = 'running'
+    COMPLETED = 'completed'
+    ERROR = 'error'
+    TIMEOUT = 'timeout'
+    STOPPED = 'stopped'
+
+    STATUS_CHOICES = [
+        (QUEUED, 'Queued'),
+        (RUNNING, 'Running'),
+        (COMPLETED, 'Completed'),
+        (ERROR, 'Error'),
+        (TIMEOUT, 'Timeout'),
+        (STOPPED, 'Stopped'),
+    ]
+
+    scenario = models.ForeignKey(
+        OptimizationScenario,
+        on_delete=models.CASCADE,
+        related_name='optimization_runs',
+    )
+    job_id = models.CharField(max_length=255, unique=True, db_index=True)
+    response_queue = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=20, default=QUEUED, choices=STATUS_CHOICES)
+    # SQS request-receipt time - NOT the billing clock.
+    queued_at = models.DateTimeField(auto_now_add=True)
+    # opt-server's real subprocess.Popen() launch time - the billing clock start.
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    # Denormalized so future billing sums don't need to recompute from
+    # started_at/ended_at repeatedly; populated when ended_at is set.
+    duration_seconds = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-queued_at']
+
+    def __str__(self):
+        return f"OptimizationRun {self.job_id} ({self.status})"
+
+    def mark_started(self, started_at):
+        self.status = self.RUNNING
+        self.started_at = started_at
+        self.save(update_fields=['status', 'started_at'])
+
+    def mark_ended(self, status: str, ended_at):
+        self.status = status
+        self.ended_at = ended_at
+        if self.started_at:
+            self.duration_seconds = (ended_at - self.started_at).total_seconds()
+        self.save(update_fields=['status', 'ended_at', 'duration_seconds'])

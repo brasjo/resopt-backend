@@ -1,16 +1,27 @@
 import json
+from datetime import timezone as dt_timezone
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from botocore.exceptions import ClientError
 
-from opt.models import OptimizationScenario, OutputFile
+from opt.models import OptimizationRun, OptimizationScenario, OutputFile
 
 from aws import sqs, s3
 from logify.log import log_info
 from resopt_utils.utils import get_logger
+
+
+TERMINAL_RUN_STATUSES = (
+    OptimizationRun.COMPLETED,
+    OptimizationRun.ERROR,
+    OptimizationRun.TIMEOUT,
+    OptimizationRun.STOPPED,
+)
 
 
 logger = get_logger(__name__)
@@ -56,6 +67,30 @@ class Command(BaseCommand):
             s3_key = body.get('s3_key')
             if not s3_key:
                 status = body['status']
+                if status == 'run_started':
+                    job_id = body['job_id']
+                    started_at = parse_datetime(body['started_at'])
+                    if started_at and timezone.is_aware(started_at):
+                        # settings.py runs USE_TZ=False on SQLite; opt-server
+                        # sends a UTC-aware ISO timestamp, which SQLite can't
+                        # store as-is. TIME_ZONE='UTC' means naive
+                        # timezone.now() values elsewhere are already UTC
+                        # wall-clock, so converting to naive UTC here keeps
+                        # duration_seconds math consistent with mark_ended's
+                        # timezone.now() (also naive UTC under this config).
+                        started_at = timezone.make_naive(started_at, dt_timezone.utc)
+                    run, _created = OptimizationRun.objects.get_or_create(
+                        job_id=job_id,
+                        defaults={
+                            'scenario': opt_run,
+                            'response_queue': body.get('response_queue', ''),
+                        },
+                    )
+                    run.mark_started(started_at)
+                    self.stdout.write(
+                        f"OptimizationRun {run.job_id} marked started at {started_at}"
+                    )
+                    return True
                 if opt_run.status == OptimizationScenario.ERROR:
                     self.stdout.write(
                         f"OptimizationScenario {opt_run.id} already in error state; "
@@ -65,6 +100,16 @@ class Command(BaseCommand):
                 opt_run.status = status
                 self.stdout.write(f"Updated OptimizationScenario {opt_run.id} status to {status}")
                 opt_run.save()
+                job_id = body.get('job_id')
+                if job_id and status in TERMINAL_RUN_STATUSES:
+                    try:
+                        run = OptimizationRun.objects.get(job_id=job_id)
+                        run.mark_ended(status, timezone.now())
+                        self.stdout.write(f"OptimizationRun {job_id} marked {status}")
+                    except OptimizationRun.DoesNotExist:
+                        self.stderr.write(
+                            f"No OptimizationRun found for job_id={job_id}; skipping timing stamp"
+                        )
                 return True
 
             s3_key_path = Path(s3_key)

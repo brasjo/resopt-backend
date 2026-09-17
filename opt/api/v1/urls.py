@@ -1,9 +1,11 @@
 from pathlib import Path
 
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 from opt.api.v1.views import (
     OutputFileViewSet,
     OptimizationScenarioViewSet,
+    StopOptimizationRunView,
 )
 
 
@@ -15,4 +17,6 @@ router = DefaultRouter()
 router.register(r'output-files', OutputFileViewSet, basename='output-files')
 router.register(r'runs', OptimizationScenarioViewSet, basename='runs')
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path('runs/<int:run_id>/stop/', StopOptimizationRunView.as_view(), name='runs-stop'),
+]

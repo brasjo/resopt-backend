@@ -1,11 +1,13 @@
 import json
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView, Response
 from django.urls import reverse
 from django.core.exceptions import ObjectDoesNotExist
 
-from opt.models import OptimizationScenario, OutputFile
+from opt.control_queue import send_stop_command
+from opt.models import OptimizationRun, OptimizationScenario, OutputFile
 from opt.api.v1.serializers import (
     OptimizationScenarioSerializer,
     OutputFileSerializer,
@@ -41,6 +43,26 @@ class OutputFileViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return OutputFile.objects.filter(run__user=self.request.user)
+
+
+class StopOptimizationRunView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, run_id, *args, **kwargs):
+        scenario = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+        run = (
+            OptimizationRun.objects
+            .filter(scenario=scenario, status=OptimizationRun.RUNNING)
+            .order_by('-queued_at')
+            .first()
+        )
+        if run is None:
+            return Response(
+                {"detail": "No in-flight optimization run found for this scenario."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        send_stop_command(job_id=run.job_id, response_queue=run.response_queue)
+        return Response({"detail": "Stop requested.", "job_id": run.job_id})
 
 
 class InputBuilderFileView(APIView):
