@@ -87,6 +87,8 @@ class Command(BaseCommand):
                         },
                     )
                     run.mark_started(started_at)
+                    opt_run.locked = True
+                    opt_run.save(update_fields=['locked'])
                     self.stdout.write(
                         f"OptimizationRun {run.job_id} marked started at {started_at}"
                     )
@@ -98,6 +100,10 @@ class Command(BaseCommand):
                     )
                     return True
                 opt_run.status = status
+                # This branch (no s3_key) only ever carries run_started
+                # (handled above) or one of the terminal statuses below -
+                # any of those means no run is actively in flight anymore.
+                opt_run.locked = False
                 self.stdout.write(f"Updated OptimizationScenario {opt_run.id} status to {status}")
                 opt_run.save()
                 job_id = body.get('job_id')

@@ -12,7 +12,7 @@ from opt.api.v1.serializers import (
     OptimizationScenarioSerializer,
     OutputFileSerializer,
 )
-from opt.permissions import IsOwnerOrReadOnly  # You need to have this defined
+from opt.permissions import IsOwnerOrReadOnly, has_admin_override  # You need to have this defined
 
 
 class DataHomeView(APIView):
@@ -50,15 +50,8 @@ class StopOptimizationRunView(APIView):
 
     def post(self, request, run_id, *args, **kwargs):
         scenario = get_object_or_404(OptimizationScenario, pk=run_id)
-        # Same precedence as OptimizationScenario.is_locked: superuser >
-        # org admin > the scenario's own owner.
         user = request.user
-        profile = getattr(user, 'profile', None)
-        can_stop = (
-            user.is_superuser
-            or (profile and profile.is_admin)
-            or scenario.user_id == user.id
-        )
+        can_stop = has_admin_override(user) or scenario.user_id == user.id
         if not can_stop:
             return Response(
                 {"detail": "You do not have permission to stop this run."},

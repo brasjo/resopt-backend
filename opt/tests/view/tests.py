@@ -7,6 +7,7 @@ from django.conf import settings
 from params.models import ParameterSet
 from users.models import Organization
 from opt.models import OptimizationScenario
+from opt.permissions import is_scenario_locked
 
 
 DEFAULT_PARAMETER_SET_CONTENT = settings.DEFAULT_PARAMETER_SET_CONTENT
@@ -144,9 +145,9 @@ class OptDetailViewPostTestCase(TestCase):
         self.assertEqual(self.opt_run.name, 'Test Scenario')
 
     def test_post_locked_scenario_is_rejected(self):
-        self.opt_run.status = OptimizationScenario.COMPLETED
+        self.opt_run.locked = True
         self.opt_run.save()
-        self.assertTrue(self.opt_run.is_locked)
+        self.assertTrue(is_scenario_locked(self.user, self.opt_run))
         r = self.client.post(
             reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
             self.base_post_data(**{'opt-name': 'Should not apply'}),

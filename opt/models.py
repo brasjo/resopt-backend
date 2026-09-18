@@ -26,7 +26,6 @@ USER_INPUT_FILENAME = settings.USER_INPUT_FILENAME
 AWS_LOCATION = settings.AWS_LOCATION
 AWS_PRESIGNED_URL_EXPIRATION = settings.AWS_PRESIGNED_URL_EXPIRATION
 RUN_SUMMARY_FILENAME = settings.RUN_SUMMARY_FILENAME
-UNLOCK_SCENARIO_ON_STATUSES = set(('pending',))
 SSIM_MAX_IMPORT_SPAN_DAYS = settings.SSIM_MAX_IMPORT_SPAN_DAYS
 SCENARIO_MAX_PERIOD_DAYS = settings.SCENARIO_MAX_PERIOD_DAYS
 SSIM_IMPORT_BUFFER_DAYS = settings.SSIM_IMPORT_BUFFER_DAYS
@@ -88,6 +87,7 @@ class OptimizationScenario(models.Model):
         (ERROR, 'Error'),
         (STOPPED, 'Stopped'),
     ]
+
     builder_version = models.CharField(
         max_length=3,
         default=V1,
@@ -101,6 +101,15 @@ class OptimizationScenario(models.Model):
         default=PENDING,
         choices=STATUS_CHOICES,
     )
+    # Set while an OptimizationRun for this scenario is actually RUNNING
+    # (opt_msg_fetcher.py's run_started/terminal-status handling), not
+    # derived from `status` - a scenario can go through several runs, and
+    # only an in-flight one should block editing. A non-admin owner can't
+    # edit while this is True; superusers/org admins always bypass it (see
+    # opt.permissions.is_scenario_locked). Full change history - including
+    # across a run's lifetime - stays in logify, so this field is only
+    # about blocking concurrent edits, not about historical traceability.
+    locked = models.BooleanField(default=False)
     run_directory = models.CharField(
         max_length=500,
         blank=True,
@@ -137,15 +146,6 @@ class OptimizationScenario(models.Model):
     # Result outputs
     # report_file = models.FileField(upload_to='reports/', null=True, blank=True)
     run_summary = models.JSONField(null=True, blank=True)
-
-    @property
-    def is_locked(self) -> bool:
-        if self.user.is_superuser:
-            return False
-        profile = getattr(self.user, 'profile', None)
-        if profile and profile.is_admin:
-            return False
-        return self.status not in UNLOCK_SCENARIO_ON_STATUSES
 
     def save(self, *args, **kwargs):
         logger.debug(f"Creating new OptimizationScenario {self.id} for user {self.user.username}")

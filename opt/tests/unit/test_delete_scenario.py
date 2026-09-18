@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from logify.log import log_info, logs_for_instance
 from opt.models import OptimizationScenario, OutputFile
+from opt.permissions import is_scenario_locked
 
 
 class TestOptimizationScenarioDelete(TestCase):
@@ -126,9 +127,9 @@ class TestDeleteScenarioView(TestCase):
         )
 
     def test_locked_scenario_can_still_be_deleted(self):
-        self.scenario.status = OptimizationScenario.COMPLETED
+        self.scenario.locked = True
         self.scenario.save()
-        self.assertTrue(self.scenario.is_locked)
+        self.assertTrue(is_scenario_locked(self.user, self.scenario))
         r = self.client.post(
             reverse("opt:delete", kwargs={"run_id": self.scenario.id}),
         )
