@@ -87,6 +87,13 @@ img {
 }
 .opt-header .btn-secondary:hover {
     background-color: var(--color-background-secondary);
+}
+.opt-header .btn-danger {
+    background-color: var(--color-red);
+    color: var(--color-text-secondary);
+}
+.opt-header .btn-danger:hover {
+    background-color: rgba(231, 76, 60, 0.85);
     border-color: var(--color-text-light-secondary);
 }
 

@@ -30,6 +30,17 @@
                     </div>
                 </button>
             </form>
+            {% if opt_run and has_running_run %}
+            <form id="stop-run-form" action="{% url 'opt:stop-run' run_id=opt_run.id %}" method="post" onsubmit="return confirm('Stop the in-flight optimization run?');">
+                {% csrf_token %}
+                <button id="opt-stop-run" type="submit" class="btn btn-danger">
+                    <div class="icon-container">
+                        {% include "icons/delete_history.svg" with title="Stop Run" alt="Stop Run" %}
+                        Stop Run
+                    </div>
+                </button>
+            </form>
+            {% endif %}
             {% if opt_run %}
             <form id="save-opt-form" action="{% url 'opt:detail' run_id=opt_run.id %}" method="post">
                 {% csrf_token %}

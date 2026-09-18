@@ -3,7 +3,7 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-{{ mock_minutes_chart|json_script:"minutes-chart-data" }}
+{{ minutes_chart|json_script:"minutes-chart-data" }}
 {{ user_status_breakdown|json_script:"user-status-chart-data" }}
 {{ org_status_breakdown|json_script:"org-status-chart-data" }}
 {{ user_run_trend_chart|json_script:"user-runs-chart-data" }}
@@ -34,10 +34,9 @@
         <div class="stat-tile">
             <div class="stat-tile-header">
                 <span class="stat-label">Optimizer minutes this month</span>
-                <span class="badge-preview">Preview</span>
             </div>
-            <div class="stat-value">{{ mock_minutes_total }}<span class="stat-unit">min</span></div>
-            <p class="stat-caption">Sample data &mdash; runtime tracking isn't wired up yet.</p>
+            <div class="stat-value">{{ minutes_total }}<span class="stat-unit">min</span></div>
+            <p class="stat-caption">Optimizer subprocess runtime recorded so far this month.</p>
         </div>
         <div class="stat-tile">
             <div class="stat-tile-header">
@@ -61,12 +60,11 @@
                 <h2>Optimizer minutes consumed</h2>
                 <p class="chart-subtitle">This month, per day</p>
             </div>
-            <span class="badge-preview">Preview</span>
         </div>
         <div class="chart-canvas-wrap">
             <canvas id="minutes-chart"></canvas>
         </div>
-        <p class="chart-footnote">Sample data. This will show real minutes once optimizer run duration is recorded.</p>
+        <p class="chart-footnote">Sums each optimizer run's recorded subprocess duration by the day it started; runs still in progress aren't counted until they finish.</p>
     </div>
 
     <div class="scope-grid">

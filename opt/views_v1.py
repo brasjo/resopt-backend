@@ -25,8 +25,9 @@ from forms.rules_matrix.base import (
     ActivityConditionFormSet,
     ResourceConditionFormSet,
 )
+from opt.control_queue import send_stop_command
 from opt.forms import OptimizationScenarioNameForm
-from opt.models import OptimizationScenario, OutputFile
+from opt.models import OptimizationRun, OptimizationScenario, OutputFile
 from opt.permissions import is_scenario_locked
 from params.models import ParameterSet
 from schemas.loader import (
@@ -42,6 +43,7 @@ from schemas.base import (
 )
 from schemas.optinput.base import InputBuilder
 from opt.preprocess import generate_input_file
+from opt.report_kpis import compute_report_kpis
 from logify.log import log_info, log_error, logs_for_instance
 from .kpi import (
     KpiTable,
@@ -107,6 +109,9 @@ class OptDetailView(LoginRequiredMixin, View):
         return {
             'opt_run': opt_run,
             'run_id': opt_run.id,
+            'has_running_run': opt_run.optimization_runs.filter(
+                status=OptimizationRun.RUNNING
+            ).exists(),
             'num_flights': len(builder.flights),
             'num_aircrafts': len(builder.aircrafts),
             'num_maintenances': len(builder.maintenances),
@@ -793,6 +798,26 @@ def delete_opt_logs_view(request, run_id):
     return redirect('opt:detail', run_id=run_id)
 
 
+@login_required
+def stop_optimization_run_view(request, run_id):
+    if request.method != 'POST':
+        return HttpResponse('Invalid request method', status=405)
+    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+    run = (
+        OptimizationRun.objects
+        .filter(scenario=opt_run, status=OptimizationRun.RUNNING)
+        .order_by('-queued_at')
+        .first()
+    )
+    if run is None:
+        messages.error(request, "No in-flight optimization run found for this scenario.")
+        return redirect('opt:detail', run_id=run_id)
+    send_stop_command(job_id=run.job_id, response_queue=run.response_queue)
+    log_info(opt_run, f"Stop requested for optimization run {run.job_id}.")
+    messages.success(request, "Stop requested. The run should end shortly.")
+    return redirect('opt:detail', run_id=run_id)
+
+
 class OptSolutionListView(LoginRequiredMixin, View):
     def get(self, request, run_id):
         opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
@@ -1423,3 +1448,42 @@ def directory_reports_view(request, directory, filename):
         return HttpResponse(f"Error generating report.", status=500)
     content_type = reports.REPORT_FORMAT_TO_CONTENT_TYPE.get(report_format)
     return HttpResponse(report_content, content_type=content_type)
+
+
+@login_required
+def directory_report_kpis_view(request, directory, filename):
+    """Derived KPI report for the Gantt visualizer's KPI panel
+    (opt/report_kpis.py) - a progressive enhancement on top of whatever
+    `kpis` the optimizer already wrote into the solution file. The
+    visualizer treats this endpoint as optional: if it's unreachable or
+    errors, it falls back to the raw solution KPIs it already fetches
+    alongside the solution file (see opt/report_kpis.py's module docstring).
+
+    Keyed by directory/filename rather than run_id/output_id because
+    that's what the Gantt visualizer actually has - it browses
+    `directories_view`'s filesystem directories, not database records.
+    """
+    opt_run = OptimizationScenario.objects.filter(user=request.user, run_directory=directory).first()
+    if not opt_run:
+        return HttpResponse(f"Could not find {directory}", status=400)
+
+    dir_path = locate_directory_abspath_safe(directory, request.user)
+    if not dir_path:
+        return HttpResponse(f"Error finding directory '{directory}'", status=400)
+    file_path = dir_path / filename
+    if not file_path.exists() or not file_path.is_file():
+        return HttpResponse(f"File '{filename}' not found in directory '{directory}'", status=404)
+
+    period_start = opt_run.get_period_start()
+    period_end = opt_run.get_period_end()
+    if not period_start or not period_end:
+        return JsonResponse(
+            {"error": "This scenario has no period set - cannot compute the KPI report."},
+            status=400,
+        )
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        output_content = json.load(f)
+    maintenances = opt_run.create_builder().maintenances
+    report = compute_report_kpis(output_content, maintenances, period_start, period_end)
+    return JsonResponse(report.as_dict())

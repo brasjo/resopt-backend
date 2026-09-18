@@ -139,7 +139,10 @@ async function jumpToSolution(idx) {
       });
       if (gen !== _solGeneration) return;
       const flights = transformSolutionToFlights(data);
-      item = { flights, kpis: data.kpis ?? null, label };
+      const reportKpis = await fetchReportKpis(filename);
+      if (gen !== _solGeneration) return;
+      const kpis = reportKpis ? { ...data.kpis, ...reportKpis } : (data.kpis ?? null);
+      item = { flights, kpis, label };
     } catch (err) {
       console.error(`jumpToSolution: failed to fetch ${_solList[idx].filename}:`, err);
       _updateSolItemStyle(idx, "error");
@@ -249,11 +252,41 @@ function updateKpiDisplay(kpis, label) {
   if (!kpis) { el.innerHTML = ""; return; }
   const total = (kpis.num_assigned ?? 0) + (kpis.num_unassigned ?? 0);
   const cost = kpis.cost != null ? (kpis.cost / 1e6).toFixed(2) + "M" : "—";
+  let extra = "";
+  if (kpis.aircraft_utilization != null || kpis.turn_time_cv != null || kpis.num_refleeted != null) {
+    const util = kpis.aircraft_utilization != null ? (kpis.aircraft_utilization * 100).toFixed(1) + "%" : "—";
+    const cv = kpis.turn_time_cv != null ? kpis.turn_time_cv.toFixed(2) : "—";
+    const refleeted = kpis.num_refleeted ?? "—";
+    extra = `
+    <div style="color:#888;">utilization: ${util}</div>
+    <div style="color:#888;">turn-time CV: ${cv}</div>
+    <div style="color:#888;">re-fleeted: ${refleeted}</div>`;
+  }
   el.innerHTML = `
     <div style="font-weight:bold;color:#333;margin-bottom:2px;">${label}</div>
     <div>${kpis.num_assigned} / ${total} assigned</div>
-    <div style="color:#888;">cost: ${cost}</div>
+    <div style="color:#888;">cost: ${cost}</div>${extra}
   `;
+}
+
+// Tries the derived report-kpis endpoint (opt/report_kpis.py) for the
+// aircraft_utilization/turn_time_cv/num_refleeted fields it adds on top of
+// what's already in the solution file. Returns null on any failure (no
+// scenario period set, network error, endpoint not reachable, etc.) so
+// callers can fall back to the solution file's own `kpis` untouched.
+async function fetchReportKpis(filename) {
+  if (!currentDir) return null;
+  try {
+    const url = `${solutionBaseUrl}${filename}/report-kpis/`;
+    const resp = await fetch(url, { credentials: "include" });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.error) return null;
+    return data;
+  } catch (err) {
+    console.warn(`fetchReportKpis: failed for ${filename}:`, err);
+    return null;
+  }
 }
 
 // -------------------------
@@ -440,7 +473,10 @@ async function _fetchSolution(idx, gen) {
     });
     if (gen !== _solGeneration) return;
     const flights = transformSolutionToFlights(data);
-    _solFetched.set(idx, { flights, kpis: data.kpis ?? null, label });
+    const reportKpis = await fetchReportKpis(filename);
+    if (gen !== _solGeneration) return;
+    const kpis = reportKpis ? { ...data.kpis, ...reportKpis } : (data.kpis ?? null);
+    _solFetched.set(idx, { flights, kpis, label });
   } catch (err) {
     console.error(`Failed to fetch ${filename}:`, err);
     if (gen !== _solGeneration) return;

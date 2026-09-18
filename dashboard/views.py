@@ -1,14 +1,13 @@
-import math
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db.models import Count, Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import render
 from django.utils import timezone
 
-from opt.models import OptimizationScenario
+from opt.models import OptimizationRun, OptimizationScenario
 from params.models import ParameterSet
 
 User = get_user_model()
@@ -29,16 +28,28 @@ MAX_STATUS_SLICES = 6
 RUN_TREND_DAYS = 30
 
 
-def _mock_minutes_series(num_days):
-    """
-    Deterministic placeholder series (no runtime tracking exists on
-    OptimizationScenario yet). Swap for a real per-day sum once run
-    duration is recorded.
-    """
-    return [
-        max(3, round(15 + 10 * math.sin(day / 2.6) + (day % 5)))
-        for day in range(num_days)
-    ]
+def _minutes_trend(scenario_queryset, month_start, today):
+    totals_by_day = {
+        row['day']: row['total']
+        for row in (
+            OptimizationRun.objects
+            .filter(
+                scenario__in=scenario_queryset,
+                duration_seconds__isnull=False,
+                started_at__date__gte=month_start,
+                started_at__date__lte=today,
+            )
+            .annotate(day=TruncDate('started_at'))
+            .values('day')
+            .annotate(total=Sum('duration_seconds'))
+        )
+    }
+    labels, data = [], []
+    for offset in range((today - month_start).days + 1):
+        day = month_start + timedelta(days=offset)
+        labels.append(str(day.day))
+        data.append(round(totals_by_day.get(day, 0) / 60, 1))
+    return {'labels': labels, 'data': data}, round(sum(data), 1)
 
 
 def _status_breakdown(queryset):
@@ -140,8 +151,7 @@ def home(request):
     user_run_trend_chart, user_run_trend_total = _run_trend(user_scenarios, since, RUN_TREND_DAYS)
     org_run_trend_chart, org_run_trend_total = _run_trend(org_scenarios, since, RUN_TREND_DAYS)
 
-    mock_minutes_data = _mock_minutes_series(today.day)
-    mock_minutes_labels = [str(day) for day in range(1, today.day + 1)]
+    minutes_chart, minutes_total = _minutes_trend(user_scenarios, month_start, today)
 
     context = {
         'viewing_user': viewing_user,
@@ -150,8 +160,8 @@ def home(request):
         'organization': organization,
         'scenarios_this_month': scenarios_this_month,
         'parameter_set_count': parameter_set_count,
-        'mock_minutes_total': sum(mock_minutes_data),
-        'mock_minutes_chart': {'labels': mock_minutes_labels, 'data': mock_minutes_data},
+        'minutes_total': minutes_total,
+        'minutes_chart': minutes_chart,
         'user_status_breakdown': _status_breakdown(user_scenarios),
         'org_status_breakdown': _status_breakdown(org_scenarios),
         'user_run_trend_chart': user_run_trend_chart,

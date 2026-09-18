@@ -19,6 +19,7 @@ from .views_v1 import (
     relational_validation_view,
     run_summary_view,
     send_to_optimizer_view,
+    stop_optimization_run_view,
     solution_reports_old_view,
     solution_reports_view,
     upload_file_view,
@@ -31,6 +32,7 @@ from .views_v1 import (
     directory_file_view,
     directory_solutions_view,
     directory_reports_view,
+    directory_report_kpis_view,
 )
 
 app_name = 'opt'
@@ -55,6 +57,7 @@ urlpatterns = [
     path('<int:run_id>/user-input-file/', user_input_file_view, name='user-input-file'),
     path('<int:run_id>/run-summary/', run_summary_view, name='run-summary'),
     path('<int:run_id>/send-to-optimizer/', send_to_optimizer_view, name='send-to-optimizer'),
+    path('<int:run_id>/stop-run/', stop_optimization_run_view, name='stop-run'),
     path('<int:run_id>/delete-all-solutions/', delete_all_solutions_view, name='delete-all-solutions'),
     path('<int:run_id>/delete/', delete_scenario_view, name='delete'),
     path('upload-file/', upload_file_view, name='upload-file'),
@@ -67,4 +70,5 @@ urlpatterns = [
     path('directories/<path:directory>/solutions/', directory_solutions_view, name='directory-solutions-view'),  # For listing all run directories
     path('directories/<path:directory>/<str:filename>', directory_file_view, name='directory-file-view'),  # For listing all run directories
     path('directories/<path:directory>/<str:filename>/reports/', directory_reports_view, name='directory-reports-view'),  # For listing all run directories
+    path('directories/<path:directory>/<str:filename>/report-kpis/', directory_report_kpis_view, name='directory-report-kpis-view'),
 ]
