@@ -16,7 +16,9 @@
     <div class="opt-header-top">
         <div class="opt-header-title">
             <h1>{% if opt_run %}Scenario {{ opt_run.id }}{% else %}Optimization Scenario{% endif %}</h1>
-            {% if opt_run %}
+            {% if opt_run and has_running_run %}
+            <span class="status-pill status-running"><span class="dot"></span>Running</span>
+            {% elif opt_run %}
             <span class="status-pill status-{{ opt_run.status|lower }}"><span class="dot"></span>{{ opt_run.get_status_display }}</span>
             {% endif %}
         </div>
@@ -122,7 +124,7 @@
                     </div>
                     <div class="keyvalue">
                         <p>Status:</p>
-                        <p>{{ opt_run.get_status_display }}</p>
+                        <p>{% if has_running_run %}Running{% else %}{{ opt_run.get_status_display }}{% endif %}</p>
                     </div>
                     {% csrf_token %}
                     {% include "opt/Form.html" with form=opt_form %}
