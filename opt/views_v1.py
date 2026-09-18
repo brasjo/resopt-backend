@@ -42,7 +42,7 @@ from schemas.base import (
     PositiveTimedeltaEntry,
 )
 from schemas.optinput.base import InputBuilder
-from opt.preprocess import generate_input_file
+from opt.preprocess import generate_input_file, resolve_effective_period
 from opt.report_kpis import compute_report_kpis
 from logify.log import log_info, log_error, logs_for_instance
 from .kpi import (
@@ -1474,8 +1474,8 @@ def directory_report_kpis_view(request, directory, filename):
     if not file_path.exists() or not file_path.is_file():
         return HttpResponse(f"File '{filename}' not found in directory '{directory}'", status=404)
 
-    period_start = opt_run.get_period_start()
-    period_end = opt_run.get_period_end()
+    builder = opt_run.create_builder()
+    period_start, period_end = resolve_effective_period(dir_path / INPUT_FILENAME, builder, opt_run)
     if not period_start or not period_end:
         return JsonResponse(
             {"error": "This scenario has no period set - cannot compute the KPI report."},
@@ -1484,6 +1484,5 @@ def directory_report_kpis_view(request, directory, filename):
 
     with open(file_path, 'r', encoding='utf-8') as f:
         output_content = json.load(f)
-    maintenances = opt_run.create_builder().maintenances
-    report = compute_report_kpis(output_content, maintenances, period_start, period_end)
+    report = compute_report_kpis(output_content, builder.maintenances, period_start, period_end)
     return JsonResponse(report.as_dict())
