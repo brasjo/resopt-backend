@@ -49,7 +49,21 @@ class StopOptimizationRunView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, run_id, *args, **kwargs):
-        scenario = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+        scenario = get_object_or_404(OptimizationScenario, pk=run_id)
+        # Same precedence as OptimizationScenario.is_locked: superuser >
+        # org admin > the scenario's own owner.
+        user = request.user
+        profile = getattr(user, 'profile', None)
+        can_stop = (
+            user.is_superuser
+            or (profile and profile.is_admin)
+            or scenario.user_id == user.id
+        )
+        if not can_stop:
+            return Response(
+                {"detail": "You do not have permission to stop this run."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         run = (
             OptimizationRun.objects
             .filter(scenario=scenario, status=OptimizationRun.RUNNING)

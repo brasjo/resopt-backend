@@ -408,7 +408,10 @@ class OptimizationRun(models.Model):
     window is what billing should ultimately meter, so it's tracked
     separately from queued_at.
     """
-    QUEUED = 'queued'
+    # Row created (via opt_msg_fetcher's run_started handling) but not yet
+    # confirmed running by opt-server. Distinct from "queued" in the SQS
+    # sense (message sent) - nothing currently sets that state explicitly.
+    PENDING = 'pending'
     RUNNING = 'running'
     COMPLETED = 'completed'
     ERROR = 'error'
@@ -416,13 +419,17 @@ class OptimizationRun(models.Model):
     STOPPED = 'stopped'
 
     STATUS_CHOICES = [
-        (QUEUED, 'Queued'),
+        (PENDING, 'Pending'),
         (RUNNING, 'Running'),
         (COMPLETED, 'Completed'),
         (ERROR, 'Error'),
         (TIMEOUT, 'Timeout'),
         (STOPPED, 'Stopped'),
     ]
+
+    # opt-server's response-queue message type for "subprocess has launched"
+    # (see opt_msg_fetcher.py) - not an OptimizationRun status.
+    RUN_STARTED_MESSAGE = 'run_started'
 
     scenario = models.ForeignKey(
         OptimizationScenario,
@@ -431,15 +438,12 @@ class OptimizationRun(models.Model):
     )
     job_id = models.CharField(max_length=255, unique=True, db_index=True)
     response_queue = models.CharField(max_length=500, blank=True)
-    status = models.CharField(max_length=20, default=QUEUED, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=20, default=PENDING, choices=STATUS_CHOICES)
     # SQS request-receipt time - NOT the billing clock.
     queued_at = models.DateTimeField(auto_now_add=True)
     # opt-server's real subprocess.Popen() launch time - the billing clock start.
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
-    # Denormalized so future billing sums don't need to recompute from
-    # started_at/ended_at repeatedly; populated when ended_at is set.
-    duration_seconds = models.FloatField(null=True, blank=True)
 
     class Meta:
         ordering = ['-queued_at']
@@ -447,14 +451,22 @@ class OptimizationRun(models.Model):
     def __str__(self):
         return f"OptimizationRun {self.job_id} ({self.status})"
 
+    @property
+    def duration_seconds(self):
+        if self.started_at and self.ended_at:
+            return (self.ended_at - self.started_at).total_seconds()
+        return None
+
     def mark_started(self, started_at):
         self.status = self.RUNNING
         self.started_at = started_at
+        # update_fields limits the UPDATE to just these columns, so a
+        # concurrent write to another field on this row (there aren't any
+        # today, but mark_ended is the same pattern) can't be clobbered by
+        # a stale in-memory value of it here.
         self.save(update_fields=['status', 'started_at'])
 
     def mark_ended(self, status: str, ended_at):
         self.status = status
         self.ended_at = ended_at
-        if self.started_at:
-            self.duration_seconds = (ended_at - self.started_at).total_seconds()
-        self.save(update_fields=['status', 'ended_at', 'duration_seconds'])
+        self.save(update_fields=['status', 'ended_at'])

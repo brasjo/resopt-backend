@@ -67,7 +67,7 @@ class Command(BaseCommand):
             s3_key = body.get('s3_key')
             if not s3_key:
                 status = body['status']
-                if status == 'run_started':
+                if status == OptimizationRun.RUN_STARTED_MESSAGE:
                     job_id = body['job_id']
                     started_at = parse_datetime(body['started_at'])
                     if started_at and timezone.is_aware(started_at):

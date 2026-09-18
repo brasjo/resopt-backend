@@ -22,11 +22,10 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('job_id', models.CharField(db_index=True, max_length=255, unique=True)),
                 ('response_queue', models.CharField(blank=True, max_length=500)),
-                ('status', models.CharField(choices=[('queued', 'Queued'), ('running', 'Running'), ('completed', 'Completed'), ('error', 'Error'), ('timeout', 'Timeout'), ('stopped', 'Stopped')], default='queued', max_length=20)),
+                ('status', models.CharField(choices=[('pending', 'Pending'), ('running', 'Running'), ('completed', 'Completed'), ('error', 'Error'), ('timeout', 'Timeout'), ('stopped', 'Stopped')], default='pending', max_length=20)),
                 ('queued_at', models.DateTimeField(auto_now_add=True)),
                 ('started_at', models.DateTimeField(blank=True, null=True)),
                 ('ended_at', models.DateTimeField(blank=True, null=True)),
-                ('duration_seconds', models.FloatField(blank=True, null=True)),
                 ('scenario', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='optimization_runs', to='opt.optimizationscenario')),
             ],
             options={
