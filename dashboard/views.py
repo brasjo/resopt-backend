@@ -1,8 +1,9 @@
+from collections import defaultdict
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Sum
+from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.shortcuts import render
 from django.utils import timezone
@@ -29,21 +30,24 @@ RUN_TREND_DAYS = 30
 
 
 def _minutes_trend(scenario_queryset, month_start, today):
-    totals_by_day = {
-        row['day']: row['total']
-        for row in (
-            OptimizationRun.objects
-            .filter(
-                scenario__in=scenario_queryset,
-                duration_seconds__isnull=False,
-                started_at__date__gte=month_start,
-                started_at__date__lte=today,
-            )
-            .annotate(day=TruncDate('started_at'))
-            .values('day')
-            .annotate(total=Sum('duration_seconds'))
+    # OptimizationRun only stores started_at/ended_at (no stored duration),
+    # and Sum() over a DurationField subtraction expression isn't reliably
+    # supported on SQLite, so duration is computed in Python instead.
+    runs = (
+        OptimizationRun.objects
+        .filter(
+            scenario__in=scenario_queryset,
+            started_at__date__gte=month_start,
+            started_at__date__lte=today,
+            ended_at__isnull=False,
         )
-    }
+        .values_list('started_at', 'ended_at')
+    )
+    totals_by_day = defaultdict(float)
+    for started_at, ended_at in runs:
+        day = timezone.localtime(started_at).date() if timezone.is_aware(started_at) else started_at.date()
+        totals_by_day[day] += (ended_at - started_at).total_seconds()
+
     labels, data = [], []
     for offset in range((today - month_start).days + 1):
         day = month_start + timedelta(days=offset)
