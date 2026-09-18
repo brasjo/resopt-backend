@@ -247,6 +247,8 @@ function updateQueueCount() {
 }
 
 function updateKpiDisplay(kpis, label) {
+  lastKpisData = kpis ?? null;
+  refreshKpiPopup();
   const el = document.getElementById("kpi-display");
   if (!el) return;
   if (!kpis) { el.innerHTML = ""; return; }
@@ -265,6 +267,31 @@ function updateKpiDisplay(kpis, label) {
     <div>${kpis.num_assigned} / ${total} assigned</div>
     <div style="color:#888;">cost: ${cost}</div>${extra}
   `;
+}
+
+function toggleKpiPopup() {
+  const popup = document.getElementById("kpi-popup");
+  if (!popup) return;
+  popup.classList.toggle("show");
+  if (popup.classList.contains("show")) refreshKpiPopup();
+}
+
+function refreshKpiPopup() {
+  const popup = document.getElementById("kpi-popup");
+  const tbody = document.querySelector("#kpi-popup-table tbody");
+  if (!popup || !tbody || !popup.classList.contains("show")) return;
+  tbody.innerHTML = "";
+  if (!lastKpisData) return;
+  for (const [key, value] of Object.entries(lastKpisData)) {
+    const row = document.createElement("tr");
+    const cell1 = document.createElement("td");
+    cell1.textContent = key;
+    const cell2 = document.createElement("td");
+    cell2.textContent = value;
+    row.appendChild(cell1);
+    row.appendChild(cell2);
+    tbody.appendChild(row);
+  }
 }
 
 // Tries the derived report-kpis endpoint (opt/report_kpis.py) for the

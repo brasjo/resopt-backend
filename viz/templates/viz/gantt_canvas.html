@@ -27,7 +27,21 @@
 
   <button onclick="resetToOriginalInput()" class="panel-btn" style="background:#95a5a6;">Reset to Original Input</button>
 
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:11px;font-weight:bold;color:#555;">KPIs</div>
+    <div id="kpi-icon" class="kpi-icon" onclick="toggleKpiPopup()" title="Shows all KPIs of the selected output."></div>
+  </div>
   <div id="kpi-display" style="font-size:11px;color:#555;line-height:1.55;min-height:44px;"></div>
+
+  <div id="kpi-popup">
+    <div class="kpi-popup-header">
+      <div>KPI</div>
+      <div>Value</div>
+    </div>
+    <table id="kpi-popup-table">
+      <tbody></tbody>
+    </table>
+  </div>
 
   <button id="fitness-chart-btn" class="panel-btn" onclick="openFitnessChart()" disabled
     style="background:#2a78d6;opacity:0.4;pointer-events:none;">Fitness graph</button>
