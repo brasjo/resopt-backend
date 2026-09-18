@@ -258,9 +258,7 @@ function updateKpiDisplay(kpis, label) {
     const cv = kpis.turn_time_cv != null ? kpis.turn_time_cv.toFixed(2) : "—";
     const refleeted = kpis.num_refleeted ?? "—";
     extra = `
-    <div style="color:#888;">utilization: ${util}</div>
-    <div style="color:#888;">turn-time CV: ${cv}</div>
-    <div style="color:#888;">re-fleeted: ${refleeted}</div>`;
+    <div style="color:#888;" title="Aircraft utilization &middot; Turn-time CV &middot; Re-fleeted count">util ${util} &middot; CV ${cv} &middot; re-fleet ${refleeted}</div>`;
   }
   el.innerHTML = `
     <div style="font-weight:bold;color:#333;margin-bottom:2px;">${label}</div>
