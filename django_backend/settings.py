@@ -69,6 +69,9 @@ if not OPTIMIZER_RESPONSE_QUEUE_URL:
 OPTIMIZER_REQUEST_QUEUE_URL = os.getenv("OPTIMIZER_REQUEST_QUEUE_URL", "")
 if not OPTIMIZER_REQUEST_QUEUE_URL:
     print("OPTIMIZER_REQUEST_QUEUE_URL not found in environment variables.")
+OPTIMIZER_CONTROL_QUEUE_URL = os.getenv("OPTIMIZER_CONTROL_QUEUE_URL", "")
+if not OPTIMIZER_CONTROL_QUEUE_URL:
+    print("OPTIMIZER_CONTROL_QUEUE_URL not found in environment variables.")
 RUN_SUMMARY_FILENAME = "run_summary.json"
 STORAGE = os.getenv('STORAGE', 'local')  # 'local' or 's3'
 

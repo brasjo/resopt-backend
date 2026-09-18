@@ -27,6 +27,7 @@ from forms.rules_matrix.base import (
 )
 from opt.forms import OptimizationScenarioNameForm
 from opt.models import OptimizationScenario, OutputFile
+from opt.permissions import is_scenario_locked
 from params.models import ParameterSet
 from schemas.loader import (
     get_individual_validation_func,
@@ -235,7 +236,7 @@ class OptDetailView(LoginRequiredMixin, View):
         builder = opt_run.create_builder()
         context = self.get_context(builder, opt_run)
 
-        opt_form = OptimizationScenarioNameForm(instance=opt_run, prefix='opt')
+        opt_form = OptimizationScenarioNameForm(instance=opt_run, prefix='opt', user=request.user)
         context['opt_form'] = opt_form
 
         params_form_cls = get_parameters_form_class(opt_run.builder_version)
@@ -286,7 +287,7 @@ class OptDetailView(LoginRequiredMixin, View):
         Handle POST requests to the optimization detail page.
         """
         opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-        if opt_run.is_locked:
+        if is_scenario_locked(request.user, opt_run):
             log_error(opt_run, "Attempted to modify locked optimization run.")
             messages.error(request, "This optimization run is locked and cannot be modified.")
             return redirect('opt:detail', run_id=run_id)
@@ -329,6 +330,7 @@ class OptDetailView(LoginRequiredMixin, View):
             request.POST,
             instance=opt_run,
             prefix='opt',
+            user=request.user,
         )
         context['opt_form'] = opt_form
         if opt_form.is_valid():
@@ -580,7 +582,7 @@ def upload_file_view(request):
     if not opt_run_id:
         return HttpResponse('Optimization run ID not provided', status=400)
     opt_run = get_object_or_404(OptimizationScenario, id=opt_run_id, user=user)
-    if opt_run.is_locked:
+    if is_scenario_locked(request.user, opt_run):
         log_error(opt_run, f"Attempted to upload file '{request.FILES.get('file').name}' to locked optimization run.")
         return HttpResponse('This optimization run is locked and cannot be modified.', status=400)
     uploaded_file = request.FILES['file']
@@ -718,7 +720,7 @@ class OptChooseParamSetView(LoginRequiredMixin, View):
         """
         logger.debug("OptChooseParamSetView.post called")
         opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-        if opt_run.is_locked:
+        if is_scenario_locked(request.user, opt_run):
             log_error(opt_run, "Attempted to choose a parameter set for a locked optimization run.")
             messages.error(request, "This optimization run is locked and cannot be modified.")
             return redirect('opt:detail', run_id=run_id)
@@ -1128,7 +1130,7 @@ def send_to_optimizer_view(request, run_id):
 @login_required
 def deassign_all_flights_view(request, run_id):
     opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    if opt_run.is_locked:
+    if is_scenario_locked(request.user, opt_run):
         log_error(opt_run, "Attempted to deassign flights from aircraft in locked optimization run.")
         return redirect('opt:detail', run_id=run_id)
     input_builder_data = opt_run.read_builder_data()
@@ -1164,7 +1166,7 @@ def delete_scenario_view(request, run_id):
     if request.method != 'POST':
         return HttpResponse('Invalid request method', status=405)
     opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    # Deliberately not blocked by opt_run.is_locked (unlike editing content) -
+    # Deliberately not blocked by is_scenario_locked (unlike editing content) -
     # deleting the whole scenario is a different kind of action than
     # modifying a completed run's input, and being able to delete old
     # completed/errored runs is often the main reason to want this at all.

@@ -26,7 +26,6 @@ USER_INPUT_FILENAME = settings.USER_INPUT_FILENAME
 AWS_LOCATION = settings.AWS_LOCATION
 AWS_PRESIGNED_URL_EXPIRATION = settings.AWS_PRESIGNED_URL_EXPIRATION
 RUN_SUMMARY_FILENAME = settings.RUN_SUMMARY_FILENAME
-UNLOCK_SCENARIO_ON_STATUSES = set(('pending',))
 SSIM_MAX_IMPORT_SPAN_DAYS = settings.SSIM_MAX_IMPORT_SPAN_DAYS
 SCENARIO_MAX_PERIOD_DAYS = settings.SCENARIO_MAX_PERIOD_DAYS
 SSIM_IMPORT_BUFFER_DAYS = settings.SSIM_IMPORT_BUFFER_DAYS
@@ -70,6 +69,7 @@ class OptimizationScenario(models.Model):
     COMPLETED = 'completed'
     TIMEOUT = 'timeout'
     ERROR = 'error'
+    STOPPED = 'stopped'
 
     V1 = 'v1'
 
@@ -85,7 +85,9 @@ class OptimizationScenario(models.Model):
         (TIMEOUT, 'Timeout'),
         (COMPLETED, 'Completed'),
         (ERROR, 'Error'),
+        (STOPPED, 'Stopped'),
     ]
+
     builder_version = models.CharField(
         max_length=3,
         default=V1,
@@ -99,6 +101,15 @@ class OptimizationScenario(models.Model):
         default=PENDING,
         choices=STATUS_CHOICES,
     )
+    # Set while an OptimizationRun for this scenario is actually RUNNING
+    # (opt_msg_fetcher.py's run_started/terminal-status handling), not
+    # derived from `status` - a scenario can go through several runs, and
+    # only an in-flight one should block editing. A non-admin owner can't
+    # edit while this is True; superusers/org admins always bypass it (see
+    # opt.permissions.is_scenario_locked). Full change history - including
+    # across a run's lifetime - stays in logify, so this field is only
+    # about blocking concurrent edits, not about historical traceability.
+    locked = models.BooleanField(default=False)
     run_directory = models.CharField(
         max_length=500,
         blank=True,
@@ -135,15 +146,6 @@ class OptimizationScenario(models.Model):
     # Result outputs
     # report_file = models.FileField(upload_to='reports/', null=True, blank=True)
     run_summary = models.JSONField(null=True, blank=True)
-
-    @property
-    def is_locked(self) -> bool:
-        if self.user.is_superuser:
-            return False
-        profile = getattr(self.user, 'profile', None)
-        if profile and profile.is_admin:
-            return False
-        return self.status not in UNLOCK_SCENARIO_ON_STATUSES
 
     def save(self, *args, **kwargs):
         logger.debug(f"Creating new OptimizationScenario {self.id} for user {self.user.username}")
@@ -392,3 +394,79 @@ class OutputFile(models.Model):
         return presigned_url_with_aws_location(
             self.file.name,
         )
+
+
+class OptimizationRun(models.Model):
+    """
+    One row per optimizer subprocess launch (i.e. per job_id), not per
+    scenario - a scenario can be resubmitted multiple times (see
+    send_to_optimizer_view). This is the source of truth for run
+    wall-clock time, to be summed later for org billing minutes.
+
+    started_at/ended_at bound only the time the optimizer subprocess was
+    actually running - not SQS queue-wait or S3 download/setup time. That
+    window is what billing should ultimately meter, so it's tracked
+    separately from queued_at.
+    """
+    # Row created (via opt_msg_fetcher's run_started handling) but not yet
+    # confirmed running by opt-server. Distinct from "queued" in the SQS
+    # sense (message sent) - nothing currently sets that state explicitly.
+    PENDING = 'pending'
+    RUNNING = 'running'
+    COMPLETED = 'completed'
+    ERROR = 'error'
+    TIMEOUT = 'timeout'
+    STOPPED = 'stopped'
+
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (RUNNING, 'Running'),
+        (COMPLETED, 'Completed'),
+        (ERROR, 'Error'),
+        (TIMEOUT, 'Timeout'),
+        (STOPPED, 'Stopped'),
+    ]
+
+    # opt-server's response-queue message type for "subprocess has launched"
+    # (see opt_msg_fetcher.py) - not an OptimizationRun status.
+    RUN_STARTED_MESSAGE = 'run_started'
+
+    scenario = models.ForeignKey(
+        OptimizationScenario,
+        on_delete=models.CASCADE,
+        related_name='optimization_runs',
+    )
+    job_id = models.CharField(max_length=255, unique=True, db_index=True)
+    response_queue = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=20, default=PENDING, choices=STATUS_CHOICES)
+    # SQS request-receipt time - NOT the billing clock.
+    queued_at = models.DateTimeField(auto_now_add=True)
+    # opt-server's real subprocess.Popen() launch time - the billing clock start.
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-queued_at']
+
+    def __str__(self):
+        return f"OptimizationRun {self.job_id} ({self.status})"
+
+    @property
+    def duration_seconds(self):
+        if self.started_at and self.ended_at:
+            return (self.ended_at - self.started_at).total_seconds()
+        return None
+
+    def mark_started(self, started_at):
+        self.status = self.RUNNING
+        self.started_at = started_at
+        # update_fields limits the UPDATE to just these columns, so a
+        # concurrent write to another field on this row (there aren't any
+        # today, but mark_ended is the same pattern) can't be clobbered by
+        # a stale in-memory value of it here.
+        self.save(update_fields=['status', 'started_at'])
+
+    def mark_ended(self, status: str, ended_at):
+        self.status = status
+        self.ended_at = ended_at
+        self.save(update_fields=['status', 'ended_at'])
