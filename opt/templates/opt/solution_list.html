@@ -3,11 +3,14 @@
 
 {% block content %}
   <h1>Solutions</h1>
+  <p>
+    <a href="{% url 'opt:detail' scenario_id=opt_run.id %}">Scenario {{ opt_run.id }} — {{ opt_run.name }}</a>
+  </p>
   <ul>
     {% for output_file in output_files %}
       <li>
         <a href="{% url 'opt:solution-detail' opt_run.id output_file.id %}">
-          {{ output_file.run.id }} - {{ output_file.run.name }}
+          {{ output_file.scenario.id }} - {{ output_file.scenario.name }}
         </a>
         <a style="color: blue;" href="{{ output_file.file.url }}">
             Download

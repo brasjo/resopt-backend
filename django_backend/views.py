@@ -36,8 +36,8 @@ def output_view(request, path):
             return HttpResponse('Forbidden', status=403)
     else:
         run_directory = Path(path).parent
-        opt_run = OptimizationScenario.objects.filter(run_directory=run_directory).first()
-        if not opt_run:
+        scenario = OptimizationScenario.objects.filter(run_directory=run_directory).first()
+        if not scenario:
             return HttpResponse('OptimizationScenario not found for this output', status=404)
         output_file = (settings.MEDIA_ROOT / path).resolve()
         if not output_file.exists() or not output_file.is_file():

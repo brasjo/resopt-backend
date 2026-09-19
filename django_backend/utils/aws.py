@@ -46,7 +46,7 @@ def generate_presigned_url(key: str, expiration: int = 3600) -> str:
         return None
 
 
-def get_file_url(request, run_id, filename):
+def get_file_url(request, scenario_id, filename):
     key = f"OUTPUTS/{filename}"  # or wherever your files are
     url = generate_presigned_url(key)
     if url:

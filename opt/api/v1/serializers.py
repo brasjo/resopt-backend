@@ -9,7 +9,7 @@ class OutputFileSerializer(serializers.ModelSerializer):
     output_file_url = serializers.SerializerMethodField()
     class Meta:
         model = OutputFile
-        fields = ['id', 'run', 'file', 'uploaded_at', 'output_file_url']
+        fields = ['id', 'scenario', 'optimization_run', 'file', 'uploaded_at', 'output_file_url']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -51,7 +51,7 @@ class OptimizationScenarioSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request is None:
             return None
-        url = reverse('opt:run-summary', kwargs={'run_id': obj.id})
+        url = reverse('opt:run-summary', kwargs={'scenario_id': obj.id})
         return request.build_absolute_uri(url)
 
     def get_input_builder_url(self, obj):
@@ -59,6 +59,6 @@ class OptimizationScenarioSerializer(serializers.ModelSerializer):
         if request is None:
             return None  # Or return just reverse(...) if you want relative URL
 
-        url = reverse('opt:input-builder', kwargs={'run_id': obj.id})
+        url = reverse('opt:input-builder', kwargs={'scenario_id': obj.id})
         return request.build_absolute_uri(url)
 

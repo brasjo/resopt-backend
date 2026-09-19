@@ -4,6 +4,7 @@ from datetime import datetime, timezone as dt_timezone
 from django.conf import settings
 
 from aws import sqs
+from schemas.run_events import ControlCommand
 
 OPTIMIZER_CONTROL_QUEUE_URL = settings.OPTIMIZER_CONTROL_QUEUE_URL
 
@@ -24,7 +25,7 @@ def send_stop_command(job_id: str, response_queue: str):
     sqs.send_message(
         QueueUrl=OPTIMIZER_CONTROL_QUEUE_URL,
         MessageBody=json.dumps({
-            "command": "stop",
+            "command": ControlCommand.STOP,
             "job_id": job_id,
             "response_queue": response_queue,
             # Explicit UTC-aware timestamp, not Django's timezone.now()

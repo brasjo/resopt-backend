@@ -47,7 +47,7 @@ def log_scenario_status_change(sender, instance, **kwargs):
 def log_output_file_creation(sender, instance, created, **kwargs):
     if created:
         log_info(
-            instance.run,
+            instance.scenario,
             f"Created OutputFile {instance.id} with filename {instance.file.name}"
         )
 

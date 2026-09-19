@@ -27,7 +27,7 @@
     </div>
     <div class="flex-col">
     {% for opt_run in opt_runs %}
-        <a href="{% url 'opt:detail' run_id=opt_run.id %}">{{ opt_run.created_at|date:"Y-m-d H:i" }} - {{ opt_run.name }}</a>
+        <a href="{% url 'opt:detail' scenario_id=opt_run.id %}">{{ opt_run.created_at|date:"Y-m-d H:i" }} - {{ opt_run.name }}</a>
     {% endfor %}
     </div>
 </div>

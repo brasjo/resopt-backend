@@ -72,6 +72,7 @@ const _solItemStyles = {
   error:    "background:#fdd;color:#e74c3c;",
 };
 let _liveSource = null;
+let lastKpisData = null;
 
 const selectedSolutionIds = new Set();
 

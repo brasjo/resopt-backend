@@ -51,7 +51,7 @@ optRunAnchorElement.addEventListener('click', (event) => {
     console.log("optRunId:", optRunId);
     if (optRunId) {
         console.log("optRunId:", optRunId);
-        window.location.href = `/opt/${optRunId}/`
+        window.location.href = `/scenario/${optRunId}/`
     }
 });
 function setSelectedOptRunId(id) {
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const optId = localStorage.getItem("prevOptId");
     if (optId) {
         const link = document.getElementById("opt-link");
-        link.href = `/opt/${optId}/`;  // client-side rewrite
+        link.href = `/scenario/${optId}/`;  // client-side rewrite
         console.log("Rewrote opt link to", link.href);
     }
     const paramId = localStorage.getItem("prevParamId");

@@ -246,7 +246,7 @@ reportMenuElement.querySelectorAll('a[data-report]').forEach(item => {
 
         // Build the URL
         // const url = `/${runId}/solutions/${outputId}/reports/?format=${encodeURIComponent(format)}&report_type=${encodeURIComponent(reportType)}`;
-        const url = `/opt/${optScenarioId}/solutions/${outputId}/reports/?report=${reportType}_${format}`;
+        const url = `/scenario/${optScenarioId}/solutions/${outputId}/reports/?report=${reportType}_${format}`;
 
         console.log("User selected:", format, "→ navigating to:", url);
 
@@ -314,7 +314,7 @@ compareLinkElement.addEventListener('mouseover', async () => {
     let queryString = solutionIdsEncoded.join(',');
 
     // Final URL
-    let url = `/opt/compare?solution_ids=${queryString}`;
+    let url = `/scenario/compare?solution_ids=${queryString}`;
 
     console.log(url);
     compareLinkElement.setAttribute('href', url);
@@ -1739,7 +1739,7 @@ function solutionId2FileName(solutionId) {
 function generateReportUrl(reportType, format, solutionId) {
     const runDirectory = solutionId2RunDirectory(solutionId);
     const fileName = solutionId2FileName(solutionId);
-    const url = `/opt/directories/${runDirectory}/${fileName}/reports/?&report=${reportType}_${format}`;
+    const url = `/scenario/directories/${runDirectory}/${fileName}/reports/?&report=${reportType}_${format}`;
     console.log("Generated report URL:", url);
     return url;
 }
@@ -1986,7 +1986,7 @@ async function loadSolutionsInMenu(dir, selectsolutionId = null) {
     console.log("Loaded solutions in menu:", solutionIds);
 };
 async function fetchSolution(solutionId) {
-    const data = await fetchGet(`/opt/directories/${solutionId}`);
+    const data = await fetchGet(`/scenario/directories/${solutionId}`);
     return data;
 }
 async function loadDirectoriesInMenu(dir) {
@@ -2007,27 +2007,27 @@ async function loadDirectoriesInMenu(dir) {
     }
 }
 async function fetchSolutions(dir) {
-    const data = await fetchGet(`/opt/directories/${dir}/solutions/`);
+    const data = await fetchGet(`/scenario/directories/${dir}/solutions/`);
     return data['solutions'];
 }
 async function fetchInput(dir) {
-    const data = await fetchGet(`/opt/directories/${dir}/input.json`);
+    const data = await fetchGet(`/scenario/directories/${dir}/input.json`);
     return data;
 }
 async function fetchUserInput(dir) {
-    const data = await fetchGet(`/opt/directories/${dir}/user_input.json`);
+    const data = await fetchGet(`/scenario/directories/${dir}/user_input.json`);
     return data;
 }
 async function fetchInputBuilder(dir) {
-    const data = await fetchGet(`/opt/directories/${dir}/input_builder.json`);
+    const data = await fetchGet(`/scenario/directories/${dir}/input_builder.json`);
     return data;
 }
 async function fetchRunSummary(dir) {
-    const data = await fetchGet(`/opt/directories/${dir}/run_summary.json`);
+    const data = await fetchGet(`/scenario/directories/${dir}/run_summary.json`);
     return data;
 }
 async function fetchDirectories() {
-    const data = await fetchGet('/opt/directories');
+    const data = await fetchGet('/scenario/directories');
     return data['run_directories'];
 }
 async function fetchGet(url) {
@@ -2318,7 +2318,7 @@ async function fetchOutputFileData(outputFile) {
 }
 async function fetchOptScenarios() {
     try {
-        const response = await fetch('/api/v1/opt/runs/');
+        const response = await fetch('/api/v1/scenario/runs/');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -2377,7 +2377,7 @@ async function fetchInputBuilder(runDirectory) {
 async function fetchInputFileV1(optScenarioId) {
     try {
         console.log("Fetching input file v1 for:", optScenarioId);
-        const response = await fetch('/opt/' + optScenarioId + '/input-file/');
+        const response = await fetch('/scenario/' + optScenarioId + '/input-file/');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -2392,7 +2392,7 @@ async function fetchInputFileV1(optScenarioId) {
 async function fetchUserInputFileV1(optScenarioId) {
     try {
         console.log("Fetching user input file v1 for:", optScenarioId);
-        const response = await fetch('/opt/' + optScenarioId + '/user-input-file/');
+        const response = await fetch('/scenario/' + optScenarioId + '/user-input-file/');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -2407,7 +2407,7 @@ async function fetchUserInputFileV1(optScenarioId) {
 async function fetchMeta2(run_directory) {
     try {
         console.log("Fetching meta for:", run_directory);
-        const response = await fetch('/opt/files/' + run_directory + '/run_summary.json');
+        const response = await fetch('/scenario/files/' + run_directory + '/run_summary.json');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -2419,7 +2419,7 @@ async function fetchMeta2(run_directory) {
     }
 }
 async function fetchMeta3(dir) {
-    const data = await fetchGet(`/opt/directories/${dir}/meta.json`);
+    const data = await fetchGet(`/scenario/directories/${dir}/meta.json`);
     return data;
 }
 async function fetchMeta(outputPath) {
@@ -2441,7 +2441,7 @@ async function fetchMeta(outputPath) {
 
 async function fetchMaintenances2(run_directory) {
     try {
-        const response = await fetch('/opt/files/' + run_directory + '/maintenances.json');
+        const response = await fetch('/scenario/files/' + run_directory + '/maintenances.json');
         if (response.status == 404) {
             return {};
         }
@@ -2457,7 +2457,7 @@ async function fetchMaintenances2(run_directory) {
 }
 async function fetchActivities2(run_directory) {
     try {
-        const response = await fetch('/opt/files/' + run_directory + '/activities.json');
+        const response = await fetch('/scenario/files/' + run_directory + '/activities.json');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -2482,7 +2482,7 @@ async function fetchActivities(outputPath) {
 }
 async function fetchResources2(run_directory) {
     try {
-        const response = await fetch('/opt/files/' + run_directory + '/resources.json');
+        const response = await fetch('/scenario/files/' + run_directory + '/resources.json');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -3264,7 +3264,7 @@ function toSolutionFileName(genKey, solutionId) {
 }
 async function fetchOutputFile(outputId) {
     try {
-        const response = await fetch('/opt/output-files/' + outputId + '/');
+        const response = await fetch('/scenario/output-files/' + outputId + '/');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -3290,7 +3290,7 @@ async function fetchSolutionFile(outputPath, solutionFileName) {
     }
 }
 async function fetchSolutionData(solutionId) {
-    return fetchGet(`/opt/directories/${solutionId}`);
+    return fetchGet(`/scenario/directories/${solutionId}`);
 }
 async function fetchSolutionsData(solutionIds) {
     const solutionsData = await Promise.all(

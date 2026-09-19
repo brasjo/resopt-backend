@@ -1,6 +1,8 @@
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta, datetime
+from pathlib import Path
 
 from .models import OptimizationScenario
 from .validation_models_int import InputFile
@@ -63,6 +65,33 @@ def preprocess_builder(
     set_aircraft_min_turn_time(context)
     set_ids(context)
     return context
+
+
+def resolve_effective_period(
+    input_file_path: Path,
+    builder: InputBuilder,
+    scenario: OptimizationScenario,
+) -> tuple[datetime | None, datetime | None]:
+    """
+    The period that actually produced a given run's solutions, checked in
+    priority order: the run's own already-materialized input.json (the
+    authoritative record of what period was used - the scenario's DB fields
+    or input builder may have changed since that run happened) > the
+    scenario's DB fields > the input builder's own meta > calculated from
+    flights. The last three levels are exactly what `preprocess_builder`/
+    `set_meta_period` already does when generating a fresh input.json, so
+    that's reused here rather than reimplemented.
+    """
+    if input_file_path.exists():
+        with open(input_file_path, 'r', encoding='utf-8') as f:
+            input_data = json.load(f)
+        input_file_cls = get_opt_input_file_class(scenario.builder_version)
+        input_file = input_file_cls(**input_data)
+        if input_file.meta.period_start and input_file.meta.period_end:
+            return input_file.meta.period_start, input_file.meta.period_end
+
+    preprocess_builder(builder, scenario.period_start, scenario.period_end)
+    return builder.meta.period_start, builder.meta.period_end
 
 
 def set_meta_period(

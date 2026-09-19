@@ -25,9 +25,10 @@ from forms.rules_matrix.base import (
     ActivityConditionFormSet,
     ResourceConditionFormSet,
 )
+from opt.control_queue import send_stop_command
 from opt.forms import OptimizationScenarioNameForm
-from opt.models import OptimizationScenario, OutputFile
-from opt.permissions import is_scenario_locked
+from opt.models import OptimizationRun, OptimizationScenario, OutputFile, logs_for_scenario
+from opt.permissions import is_scenario_locked, has_admin_override
 from params.models import ParameterSet
 from schemas.loader import (
     get_individual_validation_func,
@@ -41,8 +42,10 @@ from schemas.base import (
     PositiveTimedeltaEntry,
 )
 from schemas.optinput.base import InputBuilder
-from opt.preprocess import generate_input_file
+from opt.preprocess import generate_input_file, resolve_effective_period
+from opt.report_kpis import compute_report_kpis
 from logify.log import log_info, log_error, logs_for_instance
+from schemas.run_events import RunEvent
 from .kpi import (
     KpiTable,
     solution_kpis_from_json,
@@ -87,13 +90,13 @@ logger = logging.getLogger(__name__)
 
 class OptView(LoginRequiredMixin, View):
     def get(self, request):
-        opt_runs = OptimizationScenario.objects.filter(user=request.user).order_by('-created_at')
-        return render(request, 'opt/opt_list.html', {'opt_runs': opt_runs})
+        scenarios = OptimizationScenario.objects.filter(user=request.user).order_by('-created_at')
+        return render(request, 'opt/opt_list.html', {'opt_runs': scenarios})
 
     def post(self, request):
-        opt_run = OptimizationScenario.objects.create(user=request.user)
-        logger.info(f"Created new optimization run with ID: {opt_run.id}")
-        return redirect('opt:detail', run_id=opt_run.id)
+        scenario = OptimizationScenario.objects.create(user=request.user)
+        logger.info(f"Created new optimization run with ID: {scenario.id}")
+        return redirect('opt:detail', scenario_id=scenario.id)
 
 
 class OptDetailView(LoginRequiredMixin, View):
@@ -102,17 +105,30 @@ class OptDetailView(LoginRequiredMixin, View):
     @staticmethod
     def get_context(
         builder: InputBuilder,
-        opt_run: OptimizationScenario
+        scenario: OptimizationScenario
     ) -> dict:
+        active_runs = scenario.optimization_runs.filter(
+            status__in=[OptimizationRun.RUNNING, OptimizationRun.STOPPING]
+        )
+        opt_runs = list(scenario.optimization_runs.all())  # Meta.ordering = ['-queued_at'], newest first
         return {
-            'opt_run': opt_run,
-            'run_id': opt_run.id,
+            # Template-facing context key deliberately stays 'opt_run' (not
+            # 'scenario') even though the Python variable was renamed - see
+            # opt_detail.html's {{ opt_run.* }} references. Confines this
+            # rename to Python source without touching template markup.
+            'opt_run': scenario,
+            'scenario_id': scenario.id,
+            'has_running_run': active_runs.exists(),
+            'is_stopping': active_runs.filter(status=OptimizationRun.STOPPING).exists(),
+            'opt_runs': opt_runs,
+            'num_opt_runs': len(opt_runs),
+            'total_run_duration_seconds': sum(r.duration_seconds or 0 for r in opt_runs),
             'num_flights': len(builder.flights),
             'num_aircrafts': len(builder.aircrafts),
             'num_maintenances': len(builder.maintenances),
-            'num_solutions': opt_run.output_files.count(),
+            'num_solutions': scenario.output_files.count(),
             'parameter_sets': ParameterSet.objects.filter(
-                organization=opt_run.user.profile.organization
+                organization=scenario.user.profile.organization
             ),
             'relational_condition_formset_prototype': RelationalConditionFormSet(
                 prefix="relational_conditions_prototype",
@@ -219,27 +235,27 @@ class OptDetailView(LoginRequiredMixin, View):
     def get(
         self,
         request,
-        run_id,
+        scenario_id,
     ):
         """
         Handle GET requests to the optimization detail page.
         """
-        # Here you would retrieve the optimization run details using run_id
+        # Here you would retrieve the optimization run details using scenario_id
         # For now, we will just render a placeholder template
-        logger.debug(f"Fetching details for run_id: {run_id}")
-        opt_run = OptimizationScenario.objects.filter(
-            id=run_id,
+        logger.debug(f"Fetching details for scenario_id: {scenario_id}")
+        scenario = OptimizationScenario.objects.filter(
+            id=scenario_id,
             user=request.user,
         ).first()
-        if not opt_run:
+        if not scenario:
             return render(request, 'opt/opt404.html', status=404)
-        builder = opt_run.create_builder()
-        context = self.get_context(builder, opt_run)
+        builder = scenario.load_builder()
+        context = self.get_context(builder, scenario)
 
-        opt_form = OptimizationScenarioNameForm(instance=opt_run, prefix='opt', user=request.user)
+        opt_form = OptimizationScenarioNameForm(instance=scenario, prefix='opt', user=request.user)
         context['opt_form'] = opt_form
 
-        params_form_cls = get_parameters_form_class(opt_run.builder_version)
+        params_form_cls = get_parameters_form_class(scenario.builder_version)
         params_form = params_form_cls(
             initial=builder.parameters.model_dump(), prefix='params'
         )
@@ -279,29 +295,29 @@ class OptDetailView(LoginRequiredMixin, View):
         )
         context['parameter_sets'] = parameter_sets
 
-        context['log_entries'] = logs_for_instance(opt_run)
+        context['log_entries'] = logs_for_scenario(scenario)
         return render(request, self.template_name, context)
 
-    def post(self, request, run_id):
+    def post(self, request, scenario_id):
         """
         Handle POST requests to the optimization detail page.
         """
-        opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-        if is_scenario_locked(request.user, opt_run):
-            log_error(opt_run, "Attempted to modify locked optimization run.")
+        scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+        if is_scenario_locked(request.user, scenario):
+            log_error(scenario, "Attempted to modify locked optimization run.")
             messages.error(request, "This optimization run is locked and cannot be modified.")
-            return redirect('opt:detail', run_id=run_id)
-        original_builder = opt_run.create_builder()
+            return redirect('opt:detail', scenario_id=scenario_id)
+        original_builder = scenario.load_builder()
         builder = original_builder.model_copy(deep=True)
-        context = self.get_context(builder, opt_run)
+        context = self.get_context(builder, scenario)
 
-        self._process_opt_form(request, opt_run, context)
-        self._process_params_form(request, opt_run, builder, context)
-        self._process_min_turn_time_formset(request, opt_run, builder, context)
-        self._process_rules(request, opt_run, builder, context)
-        self._save_builder_if_changed(request, opt_run, original_builder, builder)
+        self._process_opt_form(request, scenario, context)
+        self._process_params_form(request, scenario, builder, context)
+        self._process_min_turn_time_formset(request, scenario, builder, context)
+        self._process_rules(request, scenario, builder, context)
+        self._save_builder_if_changed(request, scenario, original_builder, builder)
 
-        context['log_entries'] = logs_for_instance(opt_run)
+        context['log_entries'] = logs_for_scenario(scenario)
 
         # Post/Redirect/Get on success: redirecting means a later browser
         # refresh does a plain GET instead of resubmitting the form (the
@@ -322,13 +338,13 @@ class OptDetailView(LoginRequiredMixin, View):
         has_errors = any(m.level >= messages.ERROR for m in storage)
         storage.used = False
         if not has_errors:
-            return redirect('opt:detail', run_id=run_id)
+            return redirect('opt:detail', scenario_id=scenario_id)
         return render(request, self.template_name, context)
 
-    def _process_opt_form(self, request, opt_run, context) -> None:
+    def _process_opt_form(self, request, scenario, context) -> None:
         opt_form = OptimizationScenarioNameForm(
             request.POST,
-            instance=opt_run,
+            instance=scenario,
             prefix='opt',
             user=request.user,
         )
@@ -345,19 +361,19 @@ class OptDetailView(LoginRequiredMixin, View):
                     opt_form.cleaned_data,
                 )
 
-                logger.info(f"Updated OptimizationScenario {opt_run.id}: {cleaned_changed_data}")
-                log_info(opt_run, f"Updated Optimization scenario: {opt_form_diff_str}")
+                logger.info(f"Updated OptimizationScenario {scenario.id}: {cleaned_changed_data}")
+                log_info(scenario, f"Updated Optimization scenario: {opt_form_diff_str}")
                 messages.info(request, 'Scenario saved successfully')
         else:
             messages.error(request, f"Form submission failed. Please correct the errors.")
             for field, errors in opt_form.errors.items():
                 for error in errors:
-                    log_error(opt_run, f"Error in field '{field}': {error}")
+                    log_error(scenario, f"Error in field '{field}': {error}")
                     messages.error(request, f"{field}: {error}")
 
-    def _process_params_form(self, request, opt_run, builder, context) -> None:
-        params_cls = get_parameters_class(opt_run.builder_version)
-        params_form_cls = get_parameters_form_class(opt_run.builder_version)
+    def _process_params_form(self, request, scenario, builder, context) -> None:
+        params_cls = get_parameters_class(scenario.builder_version)
+        params_form_cls = get_parameters_form_class(scenario.builder_version)
         params_form = params_form_cls(request.POST, prefix='params')
         context['params_form'] = params_form
         custom_min_turn_times = builder.parameters.custom_min_turn_times or []
@@ -371,7 +387,7 @@ class OptDetailView(LoginRequiredMixin, View):
         else:
             messages.error(request, f"Parameters form submission failed. Please correct the errors.")
 
-    def _process_min_turn_time_formset(self, request, opt_run, builder, context) -> None:
+    def _process_min_turn_time_formset(self, request, scenario, builder, context) -> None:
         min_turn_time_formset = KeyValueFormSet(
             request.POST,
             prefix="min_turn_time",
@@ -392,7 +408,7 @@ class OptDetailView(LoginRequiredMixin, View):
                         time_delta = PositiveTimedeltaEntry(param=key, time_delta=value)
                         custom_min_turn_times.append(time_delta)
                     except ValidationError as e:
-                        log_error(opt_run, f"Error parsing minimum turn time '{key}': '{value}': {e}")
+                        log_error(scenario, f"Error parsing minimum turn time '{key}': '{value}': {e}")
                         form.add_error('value', f"Invalid time delta: {e}")
                         has_custom_min_turn_times_errors = True
         logger.debug(f"custom_min_turn_times: {custom_min_turn_times}")
@@ -429,7 +445,7 @@ class OptDetailView(LoginRequiredMixin, View):
             conditions.append(condition_cls(**cond_data))
         return conditions
 
-    def _process_rules(self, request, opt_run, builder, context) -> None:
+    def _process_rules(self, request, scenario, builder, context) -> None:
         rule_formset = RuleFormSet(
             request.POST,
             prefix="rules",
@@ -527,7 +543,7 @@ class OptDetailView(LoginRequiredMixin, View):
                 rule_error_str += f" Condition non-form errors: {
                     [fs.non_form_errors() for fs in relational_condition_formsets if fs.non_form_errors()]
                 }."
-            log_error(opt_run, rule_error_str)
+            log_error(scenario, rule_error_str)
 
         self._annotate_relational_condition_forms(builder, relational_condition_formsets)
 
@@ -559,18 +575,18 @@ class OptDetailView(LoginRequiredMixin, View):
                     form.resource_property_type_str = data_type_str(form.resource_property_type)
 
     @staticmethod
-    def _save_builder_if_changed(request, opt_run, original_builder, builder) -> None:
+    def _save_builder_if_changed(request, scenario, original_builder, builder) -> None:
         if builder.model_dump() == original_builder.model_dump():
             return
         logger.info("Builder has changed, saving builder.")
-        opt_run.save_builder(builder)
+        scenario.save_builder(builder)
         diff_str = diff_repr(
             original_builder.model_dump(),
             builder.model_dump(),
             exclude={'flights', 'aircrafts', 'maintenances'}
         )
         messages.info(request, f'Updated builder:\n{diff_str}')
-        log_info(opt_run, f"Updated input builder:\n{diff_str}")
+        log_info(scenario, f"Updated input builder:\n{diff_str}")
 
 
 @login_required
@@ -578,12 +594,16 @@ def upload_file_view(request):
     if not (request.method == 'POST' and request.FILES.get('file')):
         return HttpResponse('Invalid request', status=400)
     user = request.user
-    opt_run_id = request.GET.get('run_id')
-    if not opt_run_id:
+    # Query-string key deliberately stays 'run_id', not 'scenario_id' - it's
+    # wire-visible (constructed client-side by viz/static/viz/drag_and_drop.js's
+    # `?run_id=${selectedOptRunId}`), unlike a URL path converter name, so
+    # renaming it would be a real contract change requiring a JS update too.
+    scenario_id = request.GET.get('run_id')
+    if not scenario_id:
         return HttpResponse('Optimization run ID not provided', status=400)
-    opt_run = get_object_or_404(OptimizationScenario, id=opt_run_id, user=user)
-    if is_scenario_locked(request.user, opt_run):
-        log_error(opt_run, f"Attempted to upload file '{request.FILES.get('file').name}' to locked optimization run.")
+    scenario = get_object_or_404(OptimizationScenario, id=scenario_id, user=user)
+    if is_scenario_locked(request.user, scenario):
+        log_error(scenario, f"Attempted to upload file '{request.FILES.get('file').name}' to locked optimization run.")
         return HttpResponse('This optimization run is locked and cannot be modified.', status=400)
     uploaded_file = request.FILES['file']
     if uploaded_file.size > DATA_UPLOAD_MAX_MEMORY_SIZE:
@@ -599,11 +619,11 @@ def upload_file_view(request):
     except ValueError as e:
         return HttpResponse(f'Could not read uploaded file: {e}', status=400)
     data = raw.decode('utf-8')
-    errors = opt_run.update_input(data)
+    errors = scenario.update_input(data)
     if errors:
-        log_error(opt_run, f"Errors while uploading file '{uploaded_file.name}'")
+        log_error(scenario, f"Errors while uploading file '{uploaded_file.name}'")
         for error in errors:
-            log_error(opt_run, error)
+            log_error(scenario, error)
             messages.error(request, error)
         # log_error above only writes to the DB-backed per-scenario activity
         # log (logify) - not visible in the server console/log file unless
@@ -615,10 +635,10 @@ def upload_file_view(request):
         # messages framework after a page refresh).
         logger.warning(
             "Upload rejected for scenario %s (user=%s, file=%s): %s",
-            opt_run.id, user.username, uploaded_file.name, "; ".join(errors),
+            scenario.id, user.username, uploaded_file.name, "; ".join(errors),
         )
         return HttpResponse('Errors occurred during file upload', status=400)
-    log_info(opt_run, f"File '{uploaded_file.name}' uploaded and processed successfully.")
+    log_info(scenario, f"File '{uploaded_file.name}' uploaded and processed successfully.")
     return HttpResponse('ok')
 
 
@@ -630,23 +650,23 @@ def individual_validation(builder: InputBuilder) -> list[str]:
 
 
 @login_required
-def individual_validation_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    builder = opt_run.create_builder()
+def individual_validation_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    builder = scenario.load_builder()
     errors = individual_validation(builder)
     if errors:
-        logger.warning(f"Validation errors for run_id {run_id}: {errors}")
+        logger.warning(f"Validation errors for scenario_id {scenario_id}: {errors}")
         for error in errors:
-            log_error(opt_run, error)
+            log_error(scenario, error)
             messages.error(request, error)
     else:
         messages.success(
             request,
             "Individual validation successful."
         )
-        log_info(opt_run, "Individual validation successful.")
-        logger.info(f"Individual validation successful for run ID {run_id}")
-    return redirect('opt:detail', run_id=run_id)
+        log_info(scenario, "Individual validation successful.")
+        logger.info(f"Individual validation successful for run ID {scenario_id}")
+    return redirect('opt:detail', scenario_id=scenario_id)
 
 
 def relational_validation(builder: InputBuilder) -> list[str]:
@@ -664,30 +684,44 @@ def validation(builder: InputBuilder) -> list[str]:
 
 
 @login_required
-def relational_validation_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    input_builder_data = opt_run.read_builder_data()
-    builder_cls = get_opt_input_builder_class(opt_run.builder_version)
+def relational_validation_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    input_builder_data = scenario.read_builder_data()
+    builder_cls = get_opt_input_builder_class(scenario.builder_version)
     builder = builder_cls(**input_builder_data)
     errors = relational_validation(builder)
     if errors:
-        logger.warning(f"Validation errors for run_id {run_id}: {errors}")
+        logger.warning(f"Validation errors for scenario_id {scenario_id}: {errors}")
         for error in errors:
-            log_error(opt_run, error)
+            log_error(scenario, error)
             messages.error(request, error)
     else:
         messages.success(
             request,
             "Relational validation successful."
         )
-        log_info(opt_run, "Relational validation successful.")
-        logger.info(f"Relational validation successful for run ID {run_id}")
-    return redirect('opt:detail', run_id=run_id)
+        log_info(scenario, "Relational validation successful.")
+        logger.info(f"Relational validation successful for run ID {scenario_id}")
+    return redirect('opt:detail', scenario_id=scenario_id)
+
+
+class OptRunDetailView(LoginRequiredMixin, View):
+    template_name = 'opt/optrun_detail.html'
+
+    def get(self, request, scenario_id, optrun_id):
+        scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+        run = get_object_or_404(OptimizationRun, pk=optrun_id, scenario=scenario)
+        return render(request, self.template_name, {
+            'scenario': scenario,
+            'run': run,
+            'log_entries': logs_for_instance(run),
+            'output_files': run.output_files.all(),
+        })
 
 
 class OptCloneView(LoginRequiredMixin, View):
-    def post(self, request, run_id):
-        original_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+    def post(self, request, scenario_id):
+        original_run = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
         original_name = original_run.name
         clone_match = re.match(r'^Clone (\d+) of (.+)$', original_name)
         if clone_match:
@@ -710,104 +744,126 @@ class OptCloneView(LoginRequiredMixin, View):
         logger.info(f"Cloned optimization run {original_run.id} to new run {cloned_run.id}")
         log_info(cloned_run, f"Cloned from optimization run {original_run.id} '{original_run.name}'.")
         messages.success(request, f"Optimization run cloned successfully.")
-        return redirect('opt:detail', run_id=cloned_run.id)
+        return redirect('opt:detail', scenario_id=cloned_run.id)
 
 
 class OptChooseParamSetView(LoginRequiredMixin, View):
-    def post(self, request, run_id, param_set_id):
+    def post(self, request, scenario_id, param_set_id):
         """
         Handle POST requests to choose a parameter set for the optimization run.
         """
         logger.debug("OptChooseParamSetView.post called")
-        opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-        if is_scenario_locked(request.user, opt_run):
-            log_error(opt_run, "Attempted to choose a parameter set for a locked optimization run.")
+        scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+        if is_scenario_locked(request.user, scenario):
+            log_error(scenario, "Attempted to choose a parameter set for a locked optimization run.")
             messages.error(request, "This optimization run is locked and cannot be modified.")
-            return redirect('opt:detail', run_id=run_id)
-        logger.debug(f"opt_run: {opt_run}")
+            return redirect('opt:detail', scenario_id=scenario_id)
+        logger.debug(f"scenario: {scenario}")
         logger.debug(f"user org: {request.user.profile.organization}")
         param_set = get_object_or_404(ParameterSet, pk=param_set_id, organization=request.user.profile.organization)
         logger.debug(f"param_set: {param_set}")
         if not param_set.params:
-            log_error(opt_run, f"Parameter set '{param_set.name}' has no uploaded parameters file.")
+            log_error(scenario, f"Parameter set '{param_set.name}' has no uploaded parameters file.")
             messages.error(request, f"Parameter set '{param_set.name}' has no uploaded parameters file.")
-            return redirect('opt:detail', run_id=run_id)
-        parameters_cls = get_parameters_class(opt_run.builder_version)
+            return redirect('opt:detail', scenario_id=scenario_id)
+        parameters_cls = get_parameters_class(scenario.builder_version)
         params_data = param_set.read_data()
         params = parameters_cls(**params_data)
         params = {
             "parameters": json.loads(params.model_dump_json(indent=4))
         }
         logger.debug(f"params: {params}")
-        opt_run.update_input(json.dumps(params, indent=4))
-        log_info(opt_run, f"Parameter set '{param_set.name}' chosen for the optimization run.")
+        scenario.update_input(json.dumps(params, indent=4))
+        log_info(scenario, f"Parameter set '{param_set.name}' chosen for the optimization run.")
         messages.success(request, f"Parameter set '{param_set.name}' has been chosen for the optimization run.")
-        return redirect('opt:detail', run_id=run_id)
+        return redirect('opt:detail', scenario_id=scenario_id)
 
 
-def generate_input_file_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    builder = opt_run.create_builder()
+def generate_input_file_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    builder = scenario.load_builder()
     individual_validation_errors = individual_validation(builder)
     if individual_validation_errors:
         for error in individual_validation_errors:
             messages.error(request, f"Individual validation error: {error}")
             log_error(
-                opt_run,
+                scenario,
                 f"Failed to generate input file: individual validation error: {error}"
             )
-        return redirect('opt:detail', run_id=run_id)
+        return redirect('opt:detail', scenario_id=scenario_id)
     relational_validation_errors = relational_validation(builder)
     if relational_validation_errors:
         for error in relational_validation_errors:
             messages.error(request, f"Relational validation error: {error}")
             log_error(
-                opt_run,
+                scenario,
                 f"Failed to generate input file: relational validation error: {error}"
             )
-        return redirect('opt:detail', run_id=run_id)
+        return redirect('opt:detail', scenario_id=scenario_id)
     result = generate_input_file(
         builder,
-        opt_run,
+        scenario,
     )
     if result.error_messages:
         for error in result.error_messages:
-            log_error(opt_run, f"Failed to generate input file: {error}")
+            log_error(scenario, f"Failed to generate input file: {error}")
             messages.error(request, error)
-        return redirect('opt:detail', run_id=run_id)
+        return redirect('opt:detail', scenario_id=scenario_id)
     input_file = result.input_file
     response = HttpResponse(input_file.model_dump_json(indent=4), content_type='application/json')
-    log_info(opt_run, "Input file generated successfully.")
+    log_info(scenario, "Input file generated successfully.")
     return response
 
 
 @login_required
-def delete_opt_logs_view(request, run_id):
+def delete_opt_logs_view(request, scenario_id):
     if request.method != 'POST':
         return HttpResponse('Invalid request method', status=405)
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    log_entries = logs_for_instance(opt_run)
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    log_entries = logs_for_scenario(scenario)
     num_logs = log_entries.count()
     log_entries.delete()
     messages.success(request, f"Deleted {num_logs} log entries for this optimization run.")
-    return redirect('opt:detail', run_id=run_id)
+    return redirect('opt:detail', scenario_id=scenario_id)
+
+
+@login_required
+def stop_optimization_run_view(request, scenario_id):
+    if request.method != 'POST':
+        return HttpResponse('Invalid request method', status=405)
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    run = (
+        OptimizationRun.objects
+        .filter(scenario=scenario, status=OptimizationRun.RUNNING)
+        .order_by('-queued_at')
+        .first()
+    )
+    if run is None:
+        messages.error(request, "No in-flight optimization run found for this scenario.")
+        return redirect('opt:detail', scenario_id=scenario_id)
+    send_stop_command(job_id=run.job_id, response_queue=run.response_queue)
+    log_info(run, f"Stop requested for optimization run {run.job_id} (event: {RunEvent.STOP_SENT.value}).", source=run.job_id)
+    messages.success(request, "Stop requested. The run should end shortly.")
+    return redirect('opt:detail', scenario_id=scenario_id)
 
 
 class OptSolutionListView(LoginRequiredMixin, View):
-    def get(self, request, run_id):
-        opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-        output_files = opt_run.output_files.all() or []
+    def get(self, request, scenario_id):
+        scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+        output_files = scenario.output_files.all() or []
         context = {
-            'opt_run': opt_run,
+            # Stays 'opt_run', not 'scenario' - solution_list.html reads
+            # `{% url 'opt:solution-detail' opt_run.id output_file.id %}`.
+            'opt_run': scenario,
             'output_files': output_files,
         }
         return render(request, 'opt/solution_list.html', context)
 
 
 class OptSolutionDetailView(LoginRequiredMixin, View):
-    def get(self, request, run_id, output_id):
-        opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-        output_file = get_object_or_404(OutputFile, id=output_id, run=opt_run)
+    def get(self, request, scenario_id, output_id):
+        scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+        output_file = get_object_or_404(OutputFile, id=output_id, scenario=scenario)
         kpi_table_obj = KpiTable.from_output_files([output_file])
         output_file_names = [str(output_file)]
         kpis_rows = kpi_table_obj.as_table_rows()
@@ -821,8 +877,8 @@ class OptSolutionDetailView(LoginRequiredMixin, View):
 
 
 class OptSolutionCompareView(LoginRequiredMixin, View):
-    def get(self, request, run_id):
-        opt_scenario = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+    def get(self, request, scenario_id):
+        opt_scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
 
         output_files = opt_scenario.output_files.all()
         output_files_dict = {of.id: of for of in output_files}
@@ -842,7 +898,7 @@ class OptSolutionCompareView(LoginRequiredMixin, View):
             return HttpResponse("At least two solution IDs are required for comparison.", status=400)
 
         # Query the solutions
-        output_files = OutputFile.objects.filter(run_id=run_id, id__in=ids)
+        output_files = OutputFile.objects.filter(scenario_id=scenario_id, id__in=ids)
         output_file_names = [str(f) for f in output_files]
         kpi_table_obj = KpiTable.from_output_files(output_files)
         kpis_rows = kpi_table_obj.as_table_rows()
@@ -921,21 +977,21 @@ def report_type_and_format(string: str) -> tuple[str, str]:
 
 
 @login_required
-def solution_reports_view(request, run_id, output_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    output_file = get_object_or_404(OutputFile, pk=output_id, run=opt_run)
-    version = opt_run.builder_version
+def solution_reports_view(request, scenario_id, output_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    output_file = get_object_or_404(OutputFile, pk=output_id, scenario=scenario)
+    version = scenario.builder_version
     output_dict = json.loads(output_file.read_content())
-    builder = opt_run.read_builder_data()
+    builder = scenario.read_builder_data()
     if not builder.get('flights'):
-        logger.error(f"No flights found in input file for optimization run ID {run_id}.")
+        logger.error(f"No flights found in input file for optimization run ID {scenario_id}.")
         response = JsonResponse(output_dict, safe=False, json_dumps_params={'indent': 4})
         response['Content-Disposition'] = 'inline; filename="output.json"'
         return response
     logger.debug(f"output_dict: {output_dict}")
     output_file_py = get_opt_output_file_class(version)(**output_dict)
     builder_cls = get_opt_input_builder_class(version)
-    builder = builder_cls(**opt_run.read_builder_data())
+    builder = builder_cls(**scenario.read_builder_data())
     output_file_new = generate_output_file(builder, output_file_py)
     logger.debug(f"output_file_new: {output_file_new.model_dump_json(indent=4)}")
     response = JsonResponse(output_file_new.model_dump(exclude_none=True), safe=False)
@@ -979,23 +1035,23 @@ def solution_reports_old_view(request):
 @login_required
 def output_file_view(request, output_file_id):
     output_file = get_object_or_404(OutputFile, pk=output_file_id)
-    run = output_file.run
-    if run.user != request.user:
+    scenario = output_file.scenario
+    if scenario.user != request.user:
         return HttpResponse("You do not have permission to view this file.", status=403)
     content_json = json.loads(output_file.read_content())
     return JsonResponse(content_json, safe=False, json_dumps_params={'indent': 4})
 
 
 @login_required
-def input_builder_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    return JsonResponse(opt_run.read_builder_data(), safe=False, json_dumps_params={'indent': 4})
+def input_builder_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    return JsonResponse(scenario.read_builder_data(), safe=False, json_dumps_params={'indent': 4})
 
 
 @login_required
-def input_file_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    output_folder = MEDIA_ROOT / opt_run.run_directory
+def input_file_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    output_folder = MEDIA_ROOT / scenario.run_directory
     logger.debug(f"Looking for input file in: {output_folder}")
     if not output_folder.exists() or not output_folder.is_dir():
         return HttpResponse('Output folder not found', status=404)
@@ -1008,21 +1064,21 @@ def input_file_view(request, run_id):
 
 
 @login_required
-def user_input_file_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    user_input_dict = opt_run.read_user_input()
+def user_input_file_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    user_input_dict = scenario.read_user_input()
     return JsonResponse(user_input_dict, safe=False, json_dumps_params={'indent': 4})
 
 
 @login_required
-def run_summary_view(request, run_id):
-    logger.info('Fetching run summary for run ID: %s', run_id)
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    logger.info('Looking for run summary file at: %s', opt_run.run_summary_file.path)
-    logger.debug(f"opt_run.run_summary_file: {opt_run.run_summary_file}")
-    if not opt_run.run_summary_file or not (settings.MEDIA_ROOT / opt_run.run_summary_file.path).exists():
+def run_summary_view(request, scenario_id):
+    logger.info('Fetching run summary for run ID: %s', scenario_id)
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    logger.info('Looking for run summary file at: %s', scenario.run_summary_file.path)
+    logger.debug(f"scenario.run_summary_file: {scenario.run_summary_file}")
+    if not scenario.run_summary_file or not (settings.MEDIA_ROOT / scenario.run_summary_file.path).exists():
         return HttpResponse('Run summary file not found', status=404)
-    return JsonResponse(opt_run.read_run_summary(), safe=False, json_dumps_params={'indent': 4})
+    return JsonResponse(scenario.read_run_summary(), safe=False, json_dumps_params={'indent': 4})
 
 
 @login_required
@@ -1054,7 +1110,7 @@ def compare_solutions(request):
         return HttpResponse('Invalid solution IDs provided', status=400)
     if len(output_ids) < 2:
         return HttpResponse("At least two solutions are required for comparison.", status=400)
-    output_files = OutputFile.objects.filter(id__in=output_ids, run__user=request.user)
+    output_files = OutputFile.objects.filter(id__in=output_ids, scenario__user=request.user)
     found_ids = {of.id for of in output_files}
     missing_ids = output_ids - found_ids
     if missing_ids:
@@ -1080,42 +1136,51 @@ def compare_solutions(request):
 
 
 @login_required
-def send_to_optimizer_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    builder = opt_run.create_builder()
+def send_to_optimizer_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    if not has_admin_override(request.user) and scenario.optimization_runs.filter(
+        status__in=[OptimizationRun.PENDING, OptimizationRun.RUNNING, OptimizationRun.STOPPING]
+    ).exists():
+        messages.error(request, "An optimization run is already in progress for this scenario.")
+        log_error(scenario, "Blocked send-to-optimizer: a run is already in flight.")
+        return redirect('opt:detail', scenario_id=scenario_id)
+    builder = scenario.load_builder()
     errors = validation(builder)
     if errors:
         for error in errors:
             messages.error(request, error)
-            log_error(opt_run, f"Failed to send to optimizer: {error}")
-        return redirect('opt:detail', run_id=run_id)
-    input_file_result = generate_input_file(builder, opt_run)
+            log_error(scenario, f"Failed to send to optimizer: {error}")
+        return redirect('opt:detail', scenario_id=scenario_id)
+    input_file_result = generate_input_file(builder, scenario)
     if input_file_result.error_messages:
         for error in input_file_result.error_messages:
             messages.error(request, error)
-            log_error(opt_run, f"Failed to send to optimizer: {error}")
-        return redirect('opt:detail', run_id=run_id)
+            log_error(scenario, f"Failed to send to optimizer: {error}")
+        return redirect('opt:detail', scenario_id=scenario_id)
     input_file = input_file_result.input_file
-    file_path = MEDIA_ROOT / opt_run.run_directory / 'input.json'
+    job_id = scenario.run_directory.replace('/', '-') + '+' + datetime.now().strftime("%Y%m%d%H%M%S")
+    job_relative_dir = f"{scenario.run_directory}/{job_id}"
+    file_path = MEDIA_ROOT / job_relative_dir / 'input.json'
+    file_path.parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(input_file.model_dump_json(indent=4))
-    aws_path = Path(AWS_LOCATION) / f"{opt_run.run_directory}/input.json"
+    aws_path = Path(AWS_LOCATION) / f"{job_relative_dir}/input.json"
     try:
         s3.upload_file(str(file_path), AWS_STORAGE_BUCKET_NAME, str(aws_path))
-        log_info(opt_run, f"Uploaded input file to S3 at {aws_path}")
-        opt_run.status = OptimizationScenario.SENT
-        opt_run.save()
-        log_info(opt_run, "Input file uploaded to S3 and optimization run marked as SENT")
+        log_info(scenario, f"Uploaded input file to S3 at {aws_path}")
+        scenario.status = OptimizationScenario.SENT
+        scenario.save()
+        log_info(scenario, "Input file uploaded to S3 and optimization run marked as SENT")
     except Exception as e:
         messages.error(request, f"Failed to upload input file to optimizer: {e}")
-        log_error(opt_run, f"Failed to upload input file to S3: {e}")
-        return redirect('opt:detail', run_id=run_id)
+        log_error(scenario, f"Failed to upload input file to S3: {e}")
+        return redirect('opt:detail', scenario_id=scenario_id)
     try:
-        logger.info(f"Sending message to optimizer queue for run {opt_run.id}...")
+        logger.info(f"Sending message to optimizer queue for run {scenario.id}...")
         send_msg_to_optimizer_queue(json.dumps({
-            "opt_scenario_id": opt_run.id,
+            "opt_scenario_id": scenario.id,
             "s3_bucket": AWS_STORAGE_BUCKET_NAME,
-            "job_id": opt_run.run_directory.replace('/', '-') + '+' + datetime.now().strftime("%Y%m%d%H%M%S"),
+            "job_id": job_id,
             "s3_key": str(aws_path),
             'response_queue': OPTIMIZER_RESPONSE_QUEUE_URL,
         }))
@@ -1123,59 +1188,59 @@ def send_to_optimizer_view(request, run_id):
     except Exception as e:
         logger.error(f"Failed to send message to optimizer queue: {e}")
         messages.error(request, f"Failed to send message to optimizer queue: {e}")
-        log_error(opt_run, f"Failed to send message to optimizer queue: {e}")
-    return redirect('opt:detail', run_id=run_id)
+        log_error(scenario, f"Failed to send message to optimizer queue: {e}")
+    return redirect('opt:detail', scenario_id=scenario_id)
 
 
 @login_required
-def deassign_all_flights_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    if is_scenario_locked(request.user, opt_run):
-        log_error(opt_run, "Attempted to deassign flights from aircraft in locked optimization run.")
-        return redirect('opt:detail', run_id=run_id)
-    input_builder_data = opt_run.read_builder_data()
-    builder_cls = get_opt_input_builder_class(opt_run.builder_version)
+def deassign_all_flights_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    if is_scenario_locked(request.user, scenario):
+        log_error(scenario, "Attempted to deassign flights from aircraft in locked optimization run.")
+        return redirect('opt:detail', scenario_id=scenario_id)
+    input_builder_data = scenario.read_builder_data()
+    builder_cls = get_opt_input_builder_class(scenario.builder_version)
     builder = builder_cls(**input_builder_data)
     for flight in builder.flights:
         flight.aircraft_id = None
-    opt_run.update_input_builder(builder.model_dump())
-    log_info(opt_run, "All flights deassigned from aircraft.")
+    scenario.update_input_builder(builder.model_dump())
+    log_info(scenario, "All flights deassigned from aircraft.")
     messages.success(request, "All flights have been deassigned from aircraft.")
-    return redirect('opt:detail', run_id=run_id)
+    return redirect('opt:detail', scenario_id=scenario_id)
 
 
 @login_required
-def delete_all_solutions_view(request, run_id):
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
-    num_solutions = opt_run.output_files.count()
-    # Not opt_run.output_files.all().delete() - that's a bulk QuerySet
+def delete_all_solutions_view(request, scenario_id):
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
+    num_solutions = scenario.output_files.count()
+    # Not scenario.output_files.all().delete() - that's a bulk QuerySet
     # delete, which does NOT call each OutputFile's own overridden
     # delete() (the one that removes its file from storage) - it would
     # silently leave every solution file orphaned. Delete each instance
     # explicitly instead.
-    for output_file in opt_run.output_files.all():
+    for output_file in scenario.output_files.all():
         output_file.delete()
-    log_info(opt_run, f"Deleted all {num_solutions} solutions for this optimization run.")
+    log_info(scenario, f"Deleted all {num_solutions} solutions for this optimization run.")
     messages.success(request, f"Deleted all {num_solutions} solutions for this optimization run.")
-    opt_run.run_summary_file.delete(save=False)
-    return redirect('opt:detail', run_id=run_id)
+    scenario.run_summary_file.delete(save=False)
+    return redirect('opt:detail', scenario_id=scenario_id)
 
 
 @login_required
-def delete_scenario_view(request, run_id):
+def delete_scenario_view(request, scenario_id):
     if request.method != 'POST':
         return HttpResponse('Invalid request method', status=405)
-    opt_run = get_object_or_404(OptimizationScenario, pk=run_id, user=request.user)
+    scenario = get_object_or_404(OptimizationScenario, pk=scenario_id, user=request.user)
     # Deliberately not blocked by is_scenario_locked (unlike editing content) -
     # deleting the whole scenario is a different kind of action than
     # modifying a completed run's input, and being able to delete old
     # completed/errored runs is often the main reason to want this at all.
-    name = opt_run.name
-    logger.info("Deleting OptimizationScenario %s (%r) for user %s", run_id, name, request.user.username)
+    name = scenario.name
+    logger.info("Deleting OptimizationScenario %s (%r) for user %s", scenario_id, name, request.user.username)
     # OptimizationScenario.delete() (opt/models.py) is overridden to clean
     # up its own FileFields, every OutputFile's file, and its LogEntry rows
     # (a GenericForeignKey, so not covered by cascade) - not handled here.
-    opt_run.delete()
+    scenario.delete()
     messages.success(request, f"Deleted scenario '{name}'.")
     return redirect('opt:home')
 
@@ -1183,9 +1248,9 @@ def delete_scenario_view(request, run_id):
 @login_required
 def directories_view(request):
     user = request.user
-    opt_runs = OptimizationScenario.objects.filter(user=user).order_by('-created_at')
+    scenarios = OptimizationScenario.objects.filter(user=user).order_by('-created_at')
     run_directories = [
-        opt_run.run_directory.strip('/') for opt_run in opt_runs
+        scenario.run_directory.strip('/') for scenario in scenarios
     ]
     if not user.is_superuser:
         return JsonResponse({'run_directories': run_directories})
@@ -1216,9 +1281,9 @@ def directory_file_view(request, directory, filename):
     directory = directory
     logger.debug(f"Fetching file '{filename}' from directory '{directory}' for user '{request.user.username}'")
     user = request.user
-    opt_run = OptimizationScenario.objects.filter(user=user, run_directory=directory).first()
+    scenario = OptimizationScenario.objects.filter(user=user, run_directory=directory).first()
     if not user.is_superuser:
-        if not opt_run:
+        if not scenario:
             return HttpResponse(f"Could not find {directory}", status=400)
         output_folder = MEDIA_ROOT / directory
         if not is_safe_path(output_folder, filename):
@@ -1231,8 +1296,8 @@ def directory_file_view(request, directory, filename):
         with open(file_path, 'r', encoding='utf-8') as f:
             content_dict = json.load(f)
         return JsonResponse(content_dict, safe=False, json_dumps_params={'indent': 4})
-    logger.debug(f"opt_run: {opt_run}")
-    directories = set((opt_run.run_directory,)) if opt_run else set()
+    logger.debug(f"scenario: {scenario}")
+    directories = set((scenario.run_directory,)) if scenario else set()
     # Add all relative directories under settings.OUTPUT_DIR
     output_dir = OUTPUT_DIR
     for dirpath, dirnames, _filenames in os.walk(output_dir):
@@ -1289,18 +1354,18 @@ def directory_file_view(request, directory, filename):
 def directory_solutions_view(request, directory):
     logger.debug(f"Fetching solutions from directory '{directory}' for user '{request.user.username}'")
     user = request.user
-    opt_run = OptimizationScenario.objects.filter(user=user, run_directory=directory).first()
+    scenario = OptimizationScenario.objects.filter(user=user, run_directory=directory).first()
     if not user.is_superuser:
-        if not opt_run:
+        if not scenario:
             return HttpResponse(f"Could not find {directory}", status=400)
-        output_files = opt_run.output_files.all() or []
+        output_files = scenario.output_files.all() or []
         context = {
-            'opt_run': opt_run,
+            'scenario': scenario,
             'solutions': output_files,
         }
         return JsonResponse(context, safe=False, json_dumps_params={'indent': 4})
-    logger.debug(f"opt_run: {opt_run}")
-    directories = set((opt_run.run_directory,)) if opt_run else set()
+    logger.debug(f"scenario: {scenario}")
+    directories = set((scenario.run_directory,)) if scenario else set()
     # Add all relative directories under settings.OUTPUT_DIR
     output_dir = OUTPUT_DIR
     for dirpath, dirnames, _filenames in os.walk(output_dir):
@@ -1352,8 +1417,8 @@ def directory_solutions_view(request, directory):
 
 def locate_directory_abspath_safe(directory: str, user: User) -> Path | None:
     if not user.is_superuser:
-        opt_run = OptimizationScenario.objects.filter(user=user, run_directory=directory).first()
-        if not opt_run:
+        scenario = OptimizationScenario.objects.filter(user=user, run_directory=directory).first()
+        if not scenario:
             logger.error(f"Could not find directory '{directory}' for user '{user.username}'")
             return None
         if not is_safe_path(MEDIA_ROOT, directory):
@@ -1385,8 +1450,8 @@ def locate_directory_abspath_safe(directory: str, user: User) -> Path | None:
 
 @login_required
 def directory_reports_view(request, directory, filename):
-    opt_run = OptimizationScenario.objects.filter(user=request.user, run_directory=directory).first()
-    version = opt_run.builder_version if opt_run else LATEST_VERSION
+    scenario = OptimizationScenario.objects.filter(user=request.user, run_directory=directory).first()
+    version = scenario.builder_version if scenario else LATEST_VERSION
     dir_path = locate_directory_abspath_safe(directory, request.user)
     if not dir_path:
         return HttpResponse(f"Error finding directory '{directory}'", status=400)
@@ -1423,3 +1488,41 @@ def directory_reports_view(request, directory, filename):
         return HttpResponse(f"Error generating report.", status=500)
     content_type = reports.REPORT_FORMAT_TO_CONTENT_TYPE.get(report_format)
     return HttpResponse(report_content, content_type=content_type)
+
+
+@login_required
+def directory_report_kpis_view(request, directory, filename):
+    """Derived KPI report for the Gantt visualizer's KPI panel
+    (opt/report_kpis.py) - a progressive enhancement on top of whatever
+    `kpis` the optimizer already wrote into the solution file. The
+    visualizer treats this endpoint as optional: if it's unreachable or
+    errors, it falls back to the raw solution KPIs it already fetches
+    alongside the solution file (see opt/report_kpis.py's module docstring).
+
+    Keyed by directory/filename rather than scenario_id/output_id because
+    that's what the Gantt visualizer actually has - it browses
+    `directories_view`'s filesystem directories, not database records.
+    """
+    scenario = OptimizationScenario.objects.filter(user=request.user, run_directory=directory).first()
+    if not scenario:
+        return HttpResponse(f"Could not find {directory}", status=400)
+
+    dir_path = locate_directory_abspath_safe(directory, request.user)
+    if not dir_path:
+        return HttpResponse(f"Error finding directory '{directory}'", status=400)
+    file_path = dir_path / filename
+    if not file_path.exists() or not file_path.is_file():
+        return HttpResponse(f"File '{filename}' not found in directory '{directory}'", status=404)
+
+    builder = scenario.load_builder()
+    period_start, period_end = resolve_effective_period(dir_path / INPUT_FILENAME, builder, scenario)
+    if not period_start or not period_end:
+        return JsonResponse(
+            {"error": "This scenario has no period set - cannot compute the KPI report."},
+            status=400,
+        )
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        output_content = json.load(f)
+    report = compute_report_kpis(output_content, builder.maintenances, period_start, period_end)
+    return JsonResponse(report.as_dict())

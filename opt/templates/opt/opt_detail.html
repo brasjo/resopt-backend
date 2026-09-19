@@ -1,5 +1,6 @@
 {% extends "django_backend/base.html" %}
 {% load static %}
+{% load duration_tags %}
 {% block title %}Opt{% endblock %}
 {% block meta %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -16,7 +17,11 @@
     <div class="opt-header-top">
         <div class="opt-header-title">
             <h1>{% if opt_run %}Scenario {{ opt_run.id }}{% else %}Optimization Scenario{% endif %}</h1>
-            {% if opt_run %}
+            {% if opt_run and is_stopping %}
+            <span class="status-pill status-stopping"><span class="dot"></span>Stopping…</span>
+            {% elif opt_run and has_running_run %}
+            <span class="status-pill status-running"><span class="dot"></span>Running</span>
+            {% elif opt_run %}
             <span class="status-pill status-{{ opt_run.status|lower }}"><span class="dot"></span>{{ opt_run.get_status_display }}</span>
             {% endif %}
         </div>
@@ -30,8 +35,19 @@
                     </div>
                 </button>
             </form>
+            {% if opt_run and has_running_run and not is_stopping %}
+            <form id="stop-run-form" action="{% url 'opt:stop-run' scenario_id=opt_run.id %}" method="post" onsubmit="return confirm('Stop the in-flight optimization run?');">
+                {% csrf_token %}
+                <button id="opt-stop-run" type="submit" class="btn btn-danger">
+                    <div class="icon-container">
+                        {% include "icons/delete_history.svg" with title="Stop Run" alt="Stop Run" %}
+                        Stop Run
+                    </div>
+                </button>
+            </form>
+            {% endif %}
             {% if opt_run %}
-            <form id="save-opt-form" action="{% url 'opt:detail' run_id=opt_run.id %}" method="post">
+            <form id="save-opt-form" action="{% url 'opt:detail' scenario_id=opt_run.id %}" method="post">
                 {% csrf_token %}
                 <button type="submit" form="save-opt-form" class="btn btn-primary">
                     <div class="icon-container">
@@ -40,7 +56,7 @@
                     </div>
                 </button>
             </form>
-            <form id="clone-opt-form" action="{% url 'opt:clone' run_id=opt_run.id %}" method="post">
+            <form id="clone-opt-form" action="{% url 'opt:clone' scenario_id=opt_run.id %}" method="post">
                 {% csrf_token %}
                 <button id="opt-clone" type="submit" class="btn btn-secondary">
                     <div class="icon-container">
@@ -111,7 +127,23 @@
                     </div>
                     <div class="keyvalue">
                         <p>Status:</p>
-                        <p>{{ opt_run.get_status_display }}</p>
+                        <p>{% if is_stopping %}Stopping…{% elif has_running_run %}Running{% else %}{{ opt_run.get_status_display }}{% endif %}</p>
+                    </div>
+                    <div class="keyvalue">
+                        <p>Optimization runs:</p>
+                        <p>{{ num_opt_runs }}</p>
+                    </div>
+                    <div class="keyvalue">
+                        <p>Total run duration:</p>
+                        <p>{{ total_run_duration_seconds|hhmm }}</p>
+                    </div>
+                    <div class="keyvalue-list">
+                        <p>Runs:</p>
+                        <ul>
+                            {% for run in opt_runs %}
+                            <li><a href="{% url 'opt:optrun-detail' scenario_id=opt_run.id optrun_id=run.id %}">{{ run.job_id }} — {{ run.get_status_display }} — {{ run.duration_seconds|hhmm }}</a></li>
+                            {% endfor %}
+                        </ul>
                     </div>
                     {% csrf_token %}
                     {% include "opt/Form.html" with form=opt_form %}
@@ -193,7 +225,7 @@
                                 Delete all Solutions
                             </div>
                         </a>
-                        <form id="delete-opt-logs-form" action="{% url 'opt:delete-logs' run_id=opt_run.id %}" method="post">
+                        <form id="delete-opt-logs-form" action="{% url 'opt:delete-logs' scenario_id=opt_run.id %}" method="post">
                             {% csrf_token %}
                             <button id="opt-delete-logs" type="submit" class="btn action-item">
                                 <div class="icon-container">
@@ -202,7 +234,7 @@
                                 </div>
                             </button>
                         </form>
-                        <form id="delete-scenario-form" action="{% url 'opt:delete' run_id=opt_run.id %}" method="post" onsubmit="return confirm('Delete this scenario permanently, including all its files and solutions? This cannot be undone.');">
+                        <form id="delete-scenario-form" action="{% url 'opt:delete' scenario_id=opt_run.id %}" method="post" onsubmit="return confirm('Delete this scenario permanently, including all its files and solutions? This cannot be undone.');">
                             {% csrf_token %}
                             <button id="opt-delete-scenario" type="submit" class="btn action-item">
                                 <div class="icon-container">
