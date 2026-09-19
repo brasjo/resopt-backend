@@ -6,7 +6,9 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 from django.db import models
+from django.db.models import Q, QuerySet
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -17,7 +19,9 @@ from resopt_utils.parser import parse_content, guess_content_type, DictResult
 from resopt_utils.ssim import parse_ssim_text, expand_ssim_file, ssim_date_span
 from resopt_utils.utils import check_period_span
 from schemas.loader import get_opt_input_builder_class, InputBuilder
+from schemas.run_events import RunStatus
 from logify.log import logs_for_instance
+from logify.models import LogEntry
 
 
 INPUT_BUILDER_TEMPLATE_CONTENT = settings.INPUT_BUILDER_TEMPLATE_CONTENT
@@ -54,7 +58,7 @@ def file_upload_to(instance, filename) -> str:
     if isinstance(instance, OptimizationScenario):
         path = Path(instance.run_directory) / filename
     else:
-        path = Path(instance.run.run_directory) / filename
+        path = Path(instance.scenario.run_directory) / filename
     return str(path)
 
 
@@ -66,10 +70,13 @@ class OptimizationScenario(models.Model):
     SENT = 'sent'
     IN_QUEUE = 'in_queue'
     PROCESSING = 'processing'
+    STOPPING = RunStatus.STOPPING.value
     COMPLETED = 'completed'
     TIMEOUT = 'timeout'
     ERROR = 'error'
     STOPPED = 'stopped'
+
+    TERMINAL_STATUSES = (COMPLETED, ERROR, TIMEOUT, STOPPED)
 
     V1 = 'v1'
 
@@ -82,6 +89,7 @@ class OptimizationScenario(models.Model):
         (SENT, 'Sent'),
         (IN_QUEUE, 'In Queue'),
         (PROCESSING, 'Processing'),
+        (STOPPING, 'Stopping'),
         (TIMEOUT, 'Timeout'),
         (COMPLETED, 'Completed'),
         (ERROR, 'Error'),
@@ -169,7 +177,7 @@ class OptimizationScenario(models.Model):
         return f"OptimizationScenario {self.id} - Status: {self.status}"
 
     def delete(self, *args, **kwargs):
-        # Django's cascade delete (on_delete=CASCADE on OutputFile.run) does
+        # Django's cascade delete (on_delete=CASCADE on OutputFile.scenario) does
         # a bulk QuerySet.delete() for the related rows, which does NOT call
         # each instance's own overridden delete() - so OutputFile's own file
         # cleanup (self.file.delete(save=False)) would silently be skipped
@@ -177,6 +185,11 @@ class OptimizationScenario(models.Model):
         # each one explicitly here instead of leaving it to cascade.
         for output_file in self.output_files.all():
             output_file.delete()
+        # Same bug, same fix, for OptimizationRun: the FK's on_delete=CASCADE
+        # would bulk-delete these rows without calling their own delete(),
+        # silently orphaning every one of their LogEntry rows.
+        for run in self.optimization_runs.all():
+            run.delete()
         # This model's own FileFields aren't covered by cascade at all
         # (they're not related objects, just fields) - nothing deletes them
         # unless done explicitly.
@@ -237,7 +250,7 @@ class OptimizationScenario(models.Model):
         with open(self.input_builder.path) as f:
             return json.load(f)
 
-    def create_builder(self) -> InputBuilder:
+    def load_builder(self) -> InputBuilder:
         """Create an InputBuilder instance from the stored input builder data.
         """
         data = self.read_builder_data()
@@ -368,9 +381,16 @@ class OptimizationScenario(models.Model):
 
 
 class OutputFile(models.Model):
-    run = models.ForeignKey(
+    scenario = models.ForeignKey(
         OptimizationScenario,
         on_delete=models.CASCADE,
+        related_name='output_files',
+    )
+    optimization_run = models.ForeignKey(
+        'OptimizationRun',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='output_files',
     )
     file = models.FileField(upload_to=file_upload_to)
@@ -411,25 +431,25 @@ class OptimizationRun(models.Model):
     # Row created (via opt_msg_fetcher's run_started handling) but not yet
     # confirmed running by opt-server. Distinct from "queued" in the SQS
     # sense (message sent) - nothing currently sets that state explicitly.
-    PENDING = 'pending'
-    RUNNING = 'running'
-    COMPLETED = 'completed'
-    ERROR = 'error'
-    TIMEOUT = 'timeout'
-    STOPPED = 'stopped'
+    PENDING = RunStatus.PENDING.value
+    RUNNING = RunStatus.RUNNING.value
+    STOPPING = RunStatus.STOPPING.value
+    COMPLETED = RunStatus.COMPLETED.value
+    ERROR = RunStatus.ERROR.value
+    TIMEOUT = RunStatus.TIMEOUT.value
+    STOPPED = RunStatus.STOPPED.value
+
+    TERMINAL_STATUSES = (COMPLETED, ERROR, TIMEOUT, STOPPED)
 
     STATUS_CHOICES = [
         (PENDING, 'Pending'),
         (RUNNING, 'Running'),
+        (STOPPING, 'Stopping'),
         (COMPLETED, 'Completed'),
         (ERROR, 'Error'),
         (TIMEOUT, 'Timeout'),
         (STOPPED, 'Stopped'),
     ]
-
-    # opt-server's response-queue message type for "subprocess has launched"
-    # (see opt_msg_fetcher.py) - not an OptimizationRun status.
-    RUN_STARTED_MESSAGE = 'run_started'
 
     scenario = models.ForeignKey(
         OptimizationScenario,
@@ -451,6 +471,13 @@ class OptimizationRun(models.Model):
     def __str__(self):
         return f"OptimizationRun {self.job_id} ({self.status})"
 
+    def delete(self, *args, **kwargs):
+        # LogEntry uses a GenericForeignKey, not a real FK - nothing
+        # cascades it automatically. Same bug/fix as OptimizationScenario's
+        # own delete() override above.
+        logs_for_instance(self).delete()
+        super().delete(*args, **kwargs)
+
     @property
     def duration_seconds(self):
         if self.started_at and self.ended_at:
@@ -466,7 +493,33 @@ class OptimizationRun(models.Model):
         # a stale in-memory value of it here.
         self.save(update_fields=['status', 'started_at'])
 
-    def mark_ended(self, status: str, ended_at):
+    def mark_stopping(self):
+        self.status = self.STOPPING
+        self.save(update_fields=['status'])
+
+    def mark_ended(self, status: str, ended_at) -> bool:
+        """Transition to a terminal status. No-ops (returns False) if this
+        run already reached a terminal state - a duplicate/late terminal
+        event (e.g. a stray timeout from a second, concurrent execution of
+        the same job_id after an SQS redelivery) must not overwrite the
+        first, correct outcome.
+        """
+        if self.status in self.TERMINAL_STATUSES:
+            return False
         self.status = status
         self.ended_at = ended_at
         self.save(update_fields=['status', 'ended_at'])
+        return True
+
+
+def logs_for_scenario(scenario: OptimizationScenario) -> QuerySet[LogEntry]:
+    """All log entries for a scenario's Logs tab: its own entries merged
+    with every entry logged against its OptimizationRuns, time-ordered.
+    """
+    scenario_ct = ContentType.objects.get_for_model(OptimizationScenario, for_concrete_model=False)
+    run_ct = ContentType.objects.get_for_model(OptimizationRun, for_concrete_model=False)
+    run_ids = scenario.optimization_runs.values_list('pk', flat=True)
+    return LogEntry.objects.filter(
+        Q(content_type=scenario_ct, object_id=scenario.pk) |
+        Q(content_type=run_ct, object_id__in=run_ids)
+    ).order_by('timestamp')

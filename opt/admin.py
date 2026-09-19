@@ -4,6 +4,7 @@ from django.contrib.contenttypes.admin import GenericTabularInline
 from logify.models import LogEntry
 from opt.models import (
     OptimizationScenario,
+    OptimizationRun,
     OutputFile,
 )
 
@@ -49,15 +50,24 @@ class OptimizationScenarioAdmin(admin.ModelAdmin):
 
 
 class OutputFileAdmin(admin.ModelAdmin):
-    list_display = ('run', 'file')
+    list_display = ('scenario', 'optimization_run', 'file')
     readonly_fields = ('id', 'uploaded_at')
-    search_fields = ('run__name', 'file')
+    search_fields = ('scenario__name', 'file')
     list_filter = ('uploaded_at',)
     ordering = ('-uploaded_at',)
     date_hierarchy = 'uploaded_at'
     list_per_page = 20
-    list_select_related = ('run',)
+    list_select_related = ('scenario', 'optimization_run')
+
+
+class OptimizationRunAdmin(admin.ModelAdmin):
+    list_display = ('job_id', 'scenario', 'status', 'queued_at', 'started_at', 'ended_at')
+    list_filter = ('status',)
+    search_fields = ('job_id', 'scenario__name')
+    list_select_related = ('scenario',)
+    inlines = [LogEntryInline]
 
 
 admin.site.register(OptimizationScenario, OptimizationScenarioAdmin)
 admin.site.register(OutputFile, OutputFileAdmin)
+admin.site.register(OptimizationRun, OptimizationRunAdmin)

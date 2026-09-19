@@ -49,7 +49,7 @@ class CompareSolutionIdsTestCase(TestCase):
 
     def _get(self, solution_ids: str):
         with patch('opt.views_v1.OPTIMIZER_REPO_DIR', self.optimizer_repo_dir):
-            return self.client.get('/opt/compare/', {'solution_ids': solution_ids})
+            return self.client.get('/scenario/compare/', {'solution_ids': solution_ids})
 
     def test_resolves_a_run_directory_containing_literal_hyphens(self):
         solution_ids = (

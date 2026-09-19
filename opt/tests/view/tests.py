@@ -42,7 +42,7 @@ class ParametersTestCase(TestCase):
         )
         opt_scenario.save()
         print('opm_sce', opt_scenario)
-        r = self.client.post(reverse("opt:choose-param", kwargs={"run_id": 1, "param_set_id": 1}))
+        r = self.client.post(reverse("opt:choose-param", kwargs={"scenario_id": 1, "param_set_id": 1}))
         print(r.text)
 
 
@@ -54,7 +54,7 @@ class OptDetailViewPostTestCase(TestCase):
             password='testpassword'
         )
         self.client.login(username='testuser', password='testpassword')
-        self.opt_run = OptimizationScenario.objects.create(
+        self.scenario = OptimizationScenario.objects.create(
             user=self.user,
             name='Test Scenario',
         )
@@ -84,7 +84,7 @@ class OptDetailViewPostTestCase(TestCase):
         return data
 
     def test_get_renders_detail_page(self):
-        r = self.client.get(reverse('opt:detail', kwargs={'run_id': self.opt_run.id}))
+        r = self.client.get(reverse('opt:detail', kwargs={'scenario_id': self.scenario.id}))
         self.assertEqual(r.status_code, 200)
 
     def test_post_with_no_changes_succeeds(self):
@@ -93,12 +93,12 @@ class OptDetailViewPostTestCase(TestCase):
         # form) - follow=True lets us still inspect the final rendered
         # page's context after that redirect.
         r = self.client.post(
-            reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
+            reverse('opt:detail', kwargs={'scenario_id': self.scenario.id}),
             self.base_post_data(),
             follow=True,
         )
         self.assertEqual(r.redirect_chain, [
-            (reverse('opt:detail', kwargs={'run_id': self.opt_run.id}), 302),
+            (reverse('opt:detail', kwargs={'scenario_id': self.scenario.id}), 302),
         ])
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.context['opt_form'].errors)
@@ -108,12 +108,12 @@ class OptDetailViewPostTestCase(TestCase):
 
     def test_post_renaming_scenario_saves_name(self):
         r = self.client.post(
-            reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
+            reverse('opt:detail', kwargs={'scenario_id': self.scenario.id}),
             self.base_post_data(**{'opt-name': 'Renamed Scenario'}),
         )
-        self.assertRedirects(r, reverse('opt:detail', kwargs={'run_id': self.opt_run.id}))
-        self.opt_run.refresh_from_db()
-        self.assertEqual(self.opt_run.name, 'Renamed Scenario')
+        self.assertRedirects(r, reverse('opt:detail', kwargs={'scenario_id': self.scenario.id}))
+        self.scenario.refresh_from_db()
+        self.assertEqual(self.scenario.name, 'Renamed Scenario')
 
     def test_post_adds_custom_min_turn_time(self):
         data = self.base_post_data(**{
@@ -123,36 +123,36 @@ class OptDetailViewPostTestCase(TestCase):
             'min_turn_time-0-value': '00:45',
         })
         r = self.client.post(
-            reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
+            reverse('opt:detail', kwargs={'scenario_id': self.scenario.id}),
             data,
             follow=True,
         )
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.context['min_turn_time_formset'].errors)
-        builder = self.opt_run.create_builder()
+        builder = self.scenario.load_builder()
         custom_min_turn_times = builder.parameters.custom_min_turn_times
         self.assertEqual(len(custom_min_turn_times), 1)
         self.assertEqual(custom_min_turn_times[0].param, 'min_turn_time_A320')
 
     def test_post_invalid_opt_form_shows_errors_without_crashing(self):
         r = self.client.post(
-            reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
+            reverse('opt:detail', kwargs={'scenario_id': self.scenario.id}),
             self.base_post_data(**{'opt-name': ''}),
         )
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.context['opt_form'].errors)
-        self.opt_run.refresh_from_db()
-        self.assertEqual(self.opt_run.name, 'Test Scenario')
+        self.scenario.refresh_from_db()
+        self.assertEqual(self.scenario.name, 'Test Scenario')
 
     def test_post_locked_scenario_is_rejected(self):
-        self.opt_run.locked = True
-        self.opt_run.save()
-        self.assertTrue(is_scenario_locked(self.user, self.opt_run))
+        self.scenario.locked = True
+        self.scenario.save()
+        self.assertTrue(is_scenario_locked(self.user, self.scenario))
         r = self.client.post(
-            reverse('opt:detail', kwargs={'run_id': self.opt_run.id}),
+            reverse('opt:detail', kwargs={'scenario_id': self.scenario.id}),
             self.base_post_data(**{'opt-name': 'Should not apply'}),
             follow=True,
         )
         self.assertEqual(r.status_code, 200)
-        self.opt_run.refresh_from_db()
-        self.assertEqual(self.opt_run.name, 'Test Scenario')
+        self.scenario.refresh_from_db()
+        self.assertEqual(self.scenario.name, 'Test Scenario')

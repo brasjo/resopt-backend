@@ -51,7 +51,7 @@ class TestOptimizationScenarioDelete(TestCase):
 
     def test_delete_removes_output_files_from_storage(self):
         output_file = OutputFile.objects.create(
-            run=self.scenario,
+            scenario=self.scenario,
             file=ContentFile(b"solution data", name="solution.json"),
         )
         file_name = output_file.file.name
@@ -98,7 +98,7 @@ class TestDeleteScenarioView(TestCase):
         )
 
     def test_get_is_rejected(self):
-        r = self.client.get(reverse("opt:delete", kwargs={"run_id": self.scenario.id}))
+        r = self.client.get(reverse("opt:delete", kwargs={"scenario_id": self.scenario.id}))
         self.assertEqual(r.status_code, 405)
         self.assertTrue(
             OptimizationScenario.objects.filter(pk=self.scenario.pk).exists()
@@ -106,7 +106,7 @@ class TestDeleteScenarioView(TestCase):
 
     def test_post_deletes_scenario_and_redirects_home(self):
         r = self.client.post(
-            reverse("opt:delete", kwargs={"run_id": self.scenario.id}),
+            reverse("opt:delete", kwargs={"scenario_id": self.scenario.id}),
         )
         self.assertRedirects(r, reverse("opt:home"))
         self.assertFalse(
@@ -119,7 +119,7 @@ class TestDeleteScenarioView(TestCase):
             name="Not yours",
         )
         r = self.client.post(
-            reverse("opt:delete", kwargs={"run_id": other_scenario.id}),
+            reverse("opt:delete", kwargs={"scenario_id": other_scenario.id}),
         )
         self.assertEqual(r.status_code, 404)
         self.assertTrue(
@@ -131,7 +131,7 @@ class TestDeleteScenarioView(TestCase):
         self.scenario.save()
         self.assertTrue(is_scenario_locked(self.user, self.scenario))
         r = self.client.post(
-            reverse("opt:delete", kwargs={"run_id": self.scenario.id}),
+            reverse("opt:delete", kwargs={"scenario_id": self.scenario.id}),
         )
         self.assertRedirects(r, reverse("opt:home"))
         self.assertFalse(
@@ -157,7 +157,7 @@ class TestDeleteAllSolutionsRemovesFiles(TestCase):
 
     def test_files_are_actually_removed_from_storage(self):
         output_file = OutputFile.objects.create(
-            run=self.scenario,
+            scenario=self.scenario,
             file=ContentFile(b"solution data", name="solution.json"),
         )
         file_name = output_file.file.name
@@ -167,6 +167,6 @@ class TestDeleteAllSolutionsRemovesFiles(TestCase):
         r = self.client.get(
             reverse("opt:delete-all-solutions", args=[self.scenario.id]),
         )
-        self.assertRedirects(r, reverse("opt:detail", kwargs={"run_id": self.scenario.id}))
+        self.assertRedirects(r, reverse("opt:detail", kwargs={"scenario_id": self.scenario.id}))
         self.assertFalse(default_storage.exists(file_name))
         self.assertEqual(self.scenario.output_files.count(), 0)

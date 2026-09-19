@@ -18,5 +18,5 @@ router.register(r'output-files', OutputFileViewSet, basename='output-files')
 router.register(r'runs', OptimizationScenarioViewSet, basename='runs')
 
 urlpatterns = router.urls + [
-    path('runs/<int:run_id>/stop/', StopOptimizationRunView.as_view(), name='runs-stop'),
+    path('runs/<int:scenario_id>/stop/', StopOptimizationRunView.as_view(), name='runs-stop'),
 ]

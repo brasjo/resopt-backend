@@ -1,0 +1,47 @@
+{% extends "django_backend/base.html" %}
+{% load static %}
+{% load duration_tags %}
+{% block title %}Optimization Run{% endblock %}
+{% block styles %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'opt/css/styles.css' %}">
+{% endblock %}
+{% block nav_links %}
+{% endblock %}
+{% block content %}
+<div class="opt-header">
+    <div class="opt-header-top">
+        <div class="opt-header-title">
+            <h1><a href="{% url 'opt:detail' scenario_id=scenario.id %}">Scenario {{ scenario.id }}</a> — Run {{ run.job_id }}</h1>
+            <span class="status-pill status-{{ run.status|lower }}"><span class="dot"></span>{{ run.get_status_display }}</span>
+        </div>
+    </div>
+</div>
+<div class="flex-col gap-5">
+    <div class="keyvalue"><p>Job ID:</p><p>{{ run.job_id }}</p></div>
+    <div class="keyvalue"><p>Status:</p><p>{{ run.get_status_display }}</p></div>
+    <div class="keyvalue"><p>Queued at:</p><p>{{ run.queued_at }}</p></div>
+    <div class="keyvalue"><p>Started at:</p><p>{{ run.started_at|default:"—" }}</p></div>
+    <div class="keyvalue"><p>Ended at:</p><p>{{ run.ended_at|default:"—" }}</p></div>
+    <div class="keyvalue"><p>Duration:</p><p>{{ run.duration_seconds|hhmm }}</p></div>
+    <div class="keyvalue"><p>Solutions produced:</p><p>{{ output_files|length }}</p></div>
+
+    <h2>Logs</h2>
+    {% if log_entries %}
+    <div class="log-entries">
+        {% for entry in log_entries %}
+        <div class="log-entry log-{{ entry.level|lower }}">
+            <span class="log-timestamp">{{ entry.timestamp|date:"Y-m-d H:i:s" }}</span>
+            <span class="log-level log-{{ entry.level|lower }}">{{ entry.level }}</span>
+            <span class="log-message">{{ entry.msg }}</span>
+            {% if entry.source %}
+            <span class="log-source">[{{ entry.source }}]</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No logs available.</p>
+    {% endif %}
+</div>
+{% endblock %}

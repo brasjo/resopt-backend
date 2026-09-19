@@ -13,6 +13,8 @@ from opt.api.v1.serializers import (
     OutputFileSerializer,
 )
 from opt.permissions import IsOwnerOrReadOnly, has_admin_override  # You need to have this defined
+from logify.log import log_info
+from schemas.run_events import RunEvent
 
 
 class DataHomeView(APIView):
@@ -42,14 +44,14 @@ class OutputFileViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
 
     def get_queryset(self):
-        return OutputFile.objects.filter(run__user=self.request.user)
+        return OutputFile.objects.filter(scenario__user=self.request.user)
 
 
 class StopOptimizationRunView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, run_id, *args, **kwargs):
-        scenario = get_object_or_404(OptimizationScenario, pk=run_id)
+    def post(self, request, scenario_id, *args, **kwargs):
+        scenario = get_object_or_404(OptimizationScenario, pk=scenario_id)
         user = request.user
         can_stop = has_admin_override(user) or scenario.user_id == user.id
         if not can_stop:
@@ -69,16 +71,17 @@ class StopOptimizationRunView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         send_stop_command(job_id=run.job_id, response_queue=run.response_queue)
+        log_info(run, f"Stop requested for optimization run {run.job_id} (event: {RunEvent.STOP_SENT.value}).", source=run.job_id)
         return Response({"detail": "Stop requested.", "job_id": run.job_id})
 
 
 class InputBuilderFileView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]  # Add permissions here
 
-    def get(self, request, run_id, *args, **kwargs):
+    def get(self, request, scenario_id, *args, **kwargs):
         try:
-            # Fetch the OptimizationScenario instance for the given `run_id`
-            scenario = OptimizationScenario.objects.get(id=run_id)
+            # Fetch the OptimizationScenario instance for the given `scenario_id`
+            scenario = OptimizationScenario.objects.get(id=scenario_id)
 
             # Check if the request user is the owner of the scenario
             self.check_object_permissions(request, scenario)
